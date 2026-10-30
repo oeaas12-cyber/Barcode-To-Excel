@@ -23,6 +23,7 @@
       --accent:#2fb37a; --accent-ink:#06130d; --warn:#f59e0b; --bad:#f87171; --ok:#4ade80; }
   }
   *{box-sizing:border-box}
+  [hidden]{display:none!important}
   body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
   header{padding:18px 16px 6px;max-width:720px;margin:0 auto}
   header h1{margin:0;font-size:22px}
@@ -88,6 +89,12 @@
   .hint a{color:var(--accent);font-weight:600}
   .hint.good{color:var(--ok)} .hint.bad{color:var(--bad)}
   [dir=rtl] input[dir=ltr]{text-align:right}
+  .stock{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line);font-size:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .stock span{flex:1 1 180px}
+  .badge.out{color:var(--muted)}
+  .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .filters button{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .filters button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 </style>
 </head>
 <body>
@@ -113,15 +120,6 @@
     <div id="wrap1" class="photoWrap">
       <img id="photo1" class="thumb" alt="">
       <div id="status1" class="status"></div>
-    </div>
-    <div class="row" style="flex-wrap:nowrap;margin-top:12px">
-      <button class="btn big" type="button" id="cam2Btn" style="flex:3" data-i18n="captureDates"></button>
-      <label class="btn big" for="cam2" style="flex:1;text-align:center;font-size:15px" data-i18n="photo" data-i18n-title="photoTitle"></label>
-    </div>
-    <input id="cam2" type="file" accept="image/*" capture="environment" hidden>
-    <div id="wrap2" class="photoWrap">
-      <img id="photo2" class="thumb" alt="">
-      <div id="status2" class="status"></div>
     </div>
     <label style="margin-top:14px" data-i18n="readUsing"></label>
     <div class="seg">
@@ -152,19 +150,20 @@
       <input id="f_name" type="text" data-i18n-ph="namePh">
       <label for="f_code" data-i18n="code"></label>
       <input id="f_code" type="text" inputmode="numeric" dir="ltr" data-i18n-ph="codePh">
+      <div id="stockNote" class="stock" hidden></div>
       <div class="row">
         <div>
-          <label for="f_prod" data-i18n="prod"></label>
+          <label for="f_in" data-i18n="dateIn"></label>
           <div class="withbtn">
-            <input id="f_prod" type="date" dir="ltr">
-            <button class="btn scan" type="button" data-scan="prod" data-i18n="scanThis" data-i18n-title="scanProdTitle"></button>
+            <input id="f_in" type="datetime-local" dir="ltr">
+            <button class="btn scan" type="button" data-now="in" data-i18n="now"></button>
           </div>
         </div>
         <div>
-          <label for="f_exp" data-i18n="exp"></label>
+          <label for="f_out" data-i18n="dateOut"></label>
           <div class="withbtn">
-            <input id="f_exp" type="date" dir="ltr">
-            <button class="btn scan" type="button" data-scan="exp" data-i18n="scanThis" data-i18n-title="scanExpTitle"></button>
+            <input id="f_out" type="datetime-local" dir="ltr">
+            <button class="btn scan" type="button" data-now="out" data-i18n="now"></button>
           </div>
         </div>
       </div>
@@ -194,6 +193,11 @@
       <button class="btn" id="copyBtn" data-i18n="copy"></button>
       <button class="btn" id="wipeBtn" data-i18n="wipe"></button>
     </div>
+    <div class="filters" role="group">
+      <button type="button" data-filter="all" data-i18n="fAll"></button>
+      <button type="button" data-filter="in" data-i18n="fIn"></button>
+      <button type="button" data-filter="out" data-i18n="fOut"></button>
+    </div>
     <div class="list" id="list"></div>
     <p class="hint" data-i18n="keptHint"></p>
   </section>
@@ -206,7 +210,6 @@
   <div id="camBar">
     <button class="btn" type="button" id="camClose" data-i18n="close"></button>
     <button class="btn" type="button" id="camTorch" style="display:none" data-i18n="light"></button>
-    <button class="btn primary" type="button" id="camShot" data-i18n="capture"></button>
   </div>
 </div>
 <div id="toast"></div>
@@ -223,44 +226,42 @@
 <script>
 (() => {
   const $ = id => document.getElementById(id);
-  const F = { name:$('f_name'), code:$('f_code'), prod:$('f_prod'), exp:$('f_exp'), batch:$('f_batch'), qty:$('f_qty') };
+  const F = { name:$('f_name'), code:$('f_code'), in:$('f_in'), out:$('f_out'), batch:$('f_batch'), qty:$('f_qty') };
   let items = [], names = {}, editingId = null;
 
   // ---------- language ----------
   const I18N = {
     en: {
-      title:'Barcode → Excel', subtitle:'Scan an item, check the details, save it, then export all items to Excel.',
-      scanItem:'1. Scan item', scanBarcode:'📷 1. Scan barcode', photo:'🖼 Photo', photoTitle:'Use a photo instead',
-      captureDates:'📅 2. Capture both dates', readUsing:'Read text using', offline:'📱 On phone (free)',
+      title:'Barcode → Excel', subtitle:'Scan items as they enter and leave the warehouse, then export the log to Excel.',
+      scanItem:'1. Scan item', scanBarcode:'📷 Scan barcode', photo:'🖼 Photo', photoTitle:'Use a photo instead',
+      readUsing:'Read photos using', offline:'📱 On phone (free)',
       pasteKey:'Paste your API key', getKey:'Get a key ↗', model:'Model',
       keyPrivacy:'Your key is saved only on this phone and is sent only to the AI company you chose. AI use is billed to your own account by that company.',
-      scanTips:'1. Barcode: hold it inside the box until the phone vibrates.<br>2. Dates: tap <b>📷 Scan</b> next to a date to read just that date, or <b>Capture both dates</b> when they are printed together. Get close, hold steady, and avoid glare on shiny packs.',
+      scanTips:'Hold the barcode inside the box until the phone vibrates. <b>Date in</b> is filled with the current time. Scan an item that is already in the warehouse to mark it as out.',
       details:'2. Item details', name:'Item name', namePh:'e.g. Almarai Milk 1L', code:'Barcode number', codePh:'Scan, or type / use a scanner gun',
-      prod:'Production (factory) date', exp:'Expiration date', scanThis:'📷 Scan', scanProdTitle:'Scan the production date', scanExpTitle:'Scan the expiration date',
+      dateIn:'Date in (entered warehouse)', dateOut:'Date out (left warehouse)', now:'Now',
       batch:'Batch / lot (optional)', qty:'Quantity', save:'Save item', update:'Update item', clear:'Clear form',
-      saved:'3. Saved items', export:'⬇ Export Excel', copy:'Copy table', wipe:'Delete all',
+      saved:'3. Warehouse log', export:'⬇ Export Excel', copy:'Copy table', wipe:'Delete all',
+      fAll:'All', fIn:'In warehouse', fOut:'Out',
       keptHint:'Items are kept in this browser on this device. Export to Excel before clearing your browser data.',
-      close:'Close', light:'🔦 Light', capture:'Capture', cancel:'Cancel', del:'Delete', edit:'Edit',
-      noName:'(no name)', qtyShort:'Qty', lot:'Lot', empty:'No items yet. Scan a barcode to start.',
-      expiredAgo:'Expired {n} day(s) ago', expiresIn:'Expires in {n} day(s)', daysLeft:'{n} days left',
+      close:'Close', light:'🔦 Light', cancel:'Cancel', del:'Delete', edit:'Edit', checkout:'📤 Check out',
+      noName:'(no name)', qtyShort:'Qty', lot:'Lot', empty:'No items yet. Scan a barcode to start.', emptyFilter:'No items in this list.',
+      inW:'In', outW:'Out', inSince:'In warehouse · {n} day(s)', stayed:'Out · stayed {n} day(s)',
+      inStock:'📦 This item is in the warehouse since {d}.', markOut:'Mark as out now', checkedOut:'Checked out',
       readingBarcode:'Reading barcode…', readingDigits:'Reading the numbers under the barcode…', aiName:'AI is reading the name…',
       found:'Found: {x}', barcodeX:'barcode {c}', fromText:' (from text)', nameRemembered:'name (remembered)',
-      w_name:'name', w_barcode:'barcode', prodW:'production date', expW:'expiry date', batchW:'batch',
-      prodX:'production {d}', expX:'expiry {d}',
+      w_name:'name', w_barcode:'barcode', batchW:'batch',
       barcodeNotRead:'⚠️ Barcode not readable — retake closer, or type it.',
-      readingDates:'Reading dates…', aiDates:'AI is reading the dates…', phoneDates:'Reading dates on your phone…', tryN:'(try {i} of {n})',
-      datesNotRead:'⚠️ Dates not readable — retake closer, or pick them below.', phoneText:'Text the phone read',
       stillNeeded:'✏️ Still needed: {x}', allSet:'All set — check the details, then tap <b>Save item</b>.',
-      couldNotOpen:'Could not open that photo', needNameOrCode:'Enter at least an item name or barcode',
-      prodAfterExp:'Production date is after expiry date — please check', itemUpdated:'Item updated', itemSaved:'Item saved',
+      couldNotOpen:'Could not open that photo', needNameOrCode:'Enter at least an item name or barcode', needIn:'Enter the date in',
+      outBeforeIn:'Date out is before date in — please check', itemUpdated:'Item updated', itemSaved:'Item saved',
       askDel:'Delete this item?', askWipe:'Delete all {n} items? Export to Excel first if you need them.',
       noItems:'No items to export', xlsxMissing:'Excel library did not load — use Copy table', downloaded:'Excel file downloaded',
       noCopy:'No items to copy', copied:'Copied — paste into Excel', copyBlocked:'Copy was blocked by the browser',
-      ocrOff:'Phone reader not available — please pick the dates by hand',
-      ocrPrep:'Preparing the phone reader (first time only, about 3 MB)…', ocrReady:'✅ Phone reader ready — dates are read on your phone, free and offline.',
-      ocrFail:'⚠️ Phone reader could not start — check your internet for the first load, or type the dates by hand.',
-      aiReady:'{p} reads the name and dates (needs internet).', aiNoKey:'⚠️ Paste your API key to use AI. Until then the phone reader is used.',
-      noKey:'Add your API key first (under "Read text using")', badKey:'The API key was rejected — please check it',
+      ocrPrep:'Preparing the phone reader (first time only, about 3 MB)…', ocrReady:'✅ Phone reader ready — barcode numbers in photos are read on your phone, free and offline.',
+      ocrFail:'⚠️ Phone reader could not start — check your internet for the first load, or type the barcode.',
+      aiReady:'{p} reads the item name and barcode from photos (needs internet).', aiNoKey:'⚠️ Paste your API key to use AI. Until then the phone reader is used.',
+      noKey:'Add your API key first (under "Read photos using")', badKey:'The API key was rejected — please check it',
       rateLimited:'AI limit reached — wait a moment, or switch to On phone', aiErr:'AI error: {m} — fill it by hand or switch to On phone',
       testAi:'Test connection', aiTesting:'Checking your key…', aiOk:'✅ Connected — {p} will read your photos (model {m}).',
       aiNoModel:'⚠️ The key works, but no model that can read photos was found on this account.',
@@ -269,43 +270,40 @@
       openaiHelp:'Sign in at platform.openai.com, create an API key and paste it here. A ChatGPT Plus subscription does not include API use; it is billed separately.',
       geminiHelp:'Free: sign in with your Google account, tap "Create API key", copy it and paste it here.',
       camNA:'Camera not available — use 🖼 Photo', camDenied:'Camera permission denied — use 🖼 Photo, or allow the camera in browser settings',
-      camBarcode:'Point at the barcode — it scans automatically', camDates:'Put the production and expiry dates inside the box, then tap Capture',
-      camProd:'Put the PRODUCTION date inside the box, then tap Capture', camExp:'Put the EXPIRY date inside the box, then tap Capture',
-      head:['#','Item name','Barcode','Production date','Expiration date','Days left','Batch / lot','Quantity'], sheet:'Items'
+      camBarcode:'Point at the barcode — it scans automatically',
+      head:['#','Item name','Barcode','Date in','Date out','Days in warehouse','Status','Batch / lot','Quantity'], sheet:'Warehouse log'
     },
     ar: {
-      title:'باركود ← إكسل', subtitle:'امسح المنتج، راجع البيانات، احفظه، ثم صدّر كل المنتجات إلى ملف إكسل.',
-      scanItem:'1. مسح المنتج', scanBarcode:'📷 1. مسح الباركود', photo:'🖼 صورة', photoTitle:'استخدم صورة بدلاً من الكاميرا',
-      captureDates:'📅 2. التقاط التاريخين معاً', readUsing:'قراءة النص بواسطة', offline:'📱 على الجهاز (مجاني)',
+      title:'باركود ← إكسل', subtitle:'امسح المنتجات عند دخولها وخروجها من المستودع، ثم صدّر السجل إلى ملف إكسل.',
+      scanItem:'1. مسح المنتج', scanBarcode:'📷 مسح الباركود', photo:'🖼 صورة', photoTitle:'استخدم صورة بدلاً من الكاميرا',
+      readUsing:'قراءة الصور بواسطة', offline:'📱 على الجهاز (مجاني)',
       pasteKey:'الصق مفتاح API هنا', getKey:'احصل على مفتاح ↗', model:'النموذج',
       keyPrivacy:'يُحفظ المفتاح على هذا الجهاز فقط ويُرسل فقط إلى شركة الذكاء الاصطناعي التي اخترتها. تُحتسب تكلفة الاستخدام على حسابك لدى تلك الشركة.',
-      scanTips:'1. الباركود: ضعه داخل الإطار حتى يهتز الهاتف.<br>2. التواريخ: اضغط <b>📷 مسح</b> بجانب التاريخ لقراءته وحده، أو <b>التقاط التاريخين معاً</b> إذا كانا مطبوعين بجانب بعض. اقترب وثبّت الهاتف وتجنّب انعكاس الضوء.',
+      scanTips:'ضع الباركود داخل الإطار حتى يهتز الهاتف. يُملأ <b>تاريخ الدخول</b> بالوقت الحالي تلقائياً. امسح منتجاً موجوداً في المستودع لتسجيل خروجه.',
       details:'2. بيانات المنتج', name:'اسم المنتج', namePh:'مثال: حليب المراعي 1 لتر', code:'رقم الباركود', codePh:'امسح أو اكتب أو استخدم قارئ الباركود',
-      prod:'تاريخ الإنتاج', exp:'تاريخ الانتهاء', scanThis:'📷 مسح', scanProdTitle:'مسح تاريخ الإنتاج', scanExpTitle:'مسح تاريخ الانتهاء',
+      dateIn:'تاريخ الدخول (إلى المستودع)', dateOut:'تاريخ الخروج (من المستودع)', now:'الآن',
       batch:'رقم التشغيلة (اختياري)', qty:'الكمية', save:'حفظ المنتج', update:'تحديث المنتج', clear:'مسح الحقول',
-      saved:'3. المنتجات المحفوظة', export:'⬇ تصدير إلى إكسل', copy:'نسخ الجدول', wipe:'حذف الكل',
+      saved:'3. سجل المستودع', export:'⬇ تصدير إلى إكسل', copy:'نسخ الجدول', wipe:'حذف الكل',
+      fAll:'الكل', fIn:'في المستودع', fOut:'خرج',
       keptHint:'تُحفظ المنتجات في متصفح هذا الجهاز فقط. صدّرها إلى إكسل قبل مسح بيانات المتصفح.',
-      close:'إغلاق', light:'🔦 إضاءة', capture:'التقاط', cancel:'إلغاء', del:'حذف', edit:'تعديل',
-      noName:'(بدون اسم)', qtyShort:'الكمية', lot:'التشغيلة', empty:'لا توجد منتجات بعد. ابدأ بمسح باركود.',
-      expiredAgo:'منتهي منذ {n} يوم', expiresIn:'ينتهي خلال {n} يوم', daysLeft:'متبقٍ {n} يوم',
+      close:'إغلاق', light:'🔦 إضاءة', cancel:'إلغاء', del:'حذف', edit:'تعديل', checkout:'📤 تسجيل خروج',
+      noName:'(بدون اسم)', qtyShort:'الكمية', lot:'التشغيلة', empty:'لا توجد منتجات بعد. ابدأ بمسح باركود.', emptyFilter:'لا توجد منتجات في هذه القائمة.',
+      inW:'دخول', outW:'خروج', inSince:'في المستودع · {n} يوم', stayed:'خرج · بقي {n} يوم',
+      inStock:'📦 هذا المنتج موجود في المستودع منذ {d}.', markOut:'تسجيل خروجه الآن', checkedOut:'تم تسجيل الخروج',
       readingBarcode:'جارٍ قراءة الباركود…', readingDigits:'جارٍ قراءة الأرقام أسفل الباركود…', aiName:'الذكاء الاصطناعي يقرأ الاسم…',
       found:'تم العثور على: {x}', barcodeX:'الباركود {c}', fromText:' (من النص)', nameRemembered:'الاسم (محفوظ سابقاً)',
-      w_name:'الاسم', w_barcode:'الباركود', prodW:'تاريخ الإنتاج', expW:'تاريخ الانتهاء', batchW:'التشغيلة',
-      prodX:'الإنتاج {d}', expX:'الانتهاء {d}',
+      w_name:'الاسم', w_barcode:'الباركود', batchW:'التشغيلة',
       barcodeNotRead:'⚠️ تعذّرت قراءة الباركود — صوّر من مسافة أقرب أو اكتبه يدوياً.',
-      readingDates:'جارٍ قراءة التواريخ…', aiDates:'الذكاء الاصطناعي يقرأ التواريخ…', phoneDates:'جارٍ قراءة التواريخ على جهازك…', tryN:'(محاولة {i} من {n})',
-      datesNotRead:'⚠️ تعذّرت قراءة التاريخ — صوّر من مسافة أقرب أو اختره يدوياً.', phoneText:'النص الذي قرأه الجهاز',
       stillNeeded:'✏️ ما زال مطلوباً: {x}', allSet:'كل شيء جاهز — راجع البيانات ثم اضغط <b>حفظ المنتج</b>.',
-      couldNotOpen:'تعذّر فتح الصورة', needNameOrCode:'أدخل اسم المنتج أو الباركود على الأقل',
-      prodAfterExp:'تاريخ الإنتاج بعد تاريخ الانتهاء — يرجى التحقق', itemUpdated:'تم تحديث المنتج', itemSaved:'تم حفظ المنتج',
+      couldNotOpen:'تعذّر فتح الصورة', needNameOrCode:'أدخل اسم المنتج أو الباركود على الأقل', needIn:'أدخل تاريخ الدخول',
+      outBeforeIn:'تاريخ الخروج قبل تاريخ الدخول — يرجى التحقق', itemUpdated:'تم تحديث المنتج', itemSaved:'تم حفظ المنتج',
       askDel:'حذف هذا المنتج؟', askWipe:'حذف جميع المنتجات ({n})؟ صدّرها إلى إكسل أولاً إذا كنت تحتاجها.',
       noItems:'لا توجد منتجات للتصدير', xlsxMissing:'لم يتم تحميل مكتبة إكسل — استخدم نسخ الجدول', downloaded:'تم تنزيل ملف إكسل',
       noCopy:'لا توجد منتجات للنسخ', copied:'تم النسخ — الصقه في إكسل', copyBlocked:'منع المتصفح عملية النسخ',
-      ocrOff:'القارئ على الجهاز غير متاح — يرجى اختيار التواريخ يدوياً',
-      ocrPrep:'جارٍ تجهيز القارئ على الجهاز (أول مرة فقط، حوالي 3 ميجابايت)…', ocrReady:'✅ القارئ جاهز — تُقرأ التواريخ على جهازك مجاناً ودون إنترنت.',
-      ocrFail:'⚠️ تعذّر تشغيل القارئ — تأكد من الاتصال بالإنترنت في أول استخدام، أو أدخل التواريخ يدوياً.',
-      aiReady:'{p} يقرأ الاسم والتواريخ (يحتاج إنترنت).', aiNoKey:'⚠️ الصق مفتاح API لاستخدام الذكاء الاصطناعي. حتى ذلك الحين يُستخدم القارئ على الجهاز.',
-      noKey:'أضف مفتاح API أولاً (ضمن "قراءة النص بواسطة")', badKey:'تم رفض مفتاح API — يرجى التحقق منه',
+      ocrPrep:'جارٍ تجهيز القارئ على الجهاز (أول مرة فقط، حوالي 3 ميجابايت)…', ocrReady:'✅ القارئ جاهز — تُقرأ أرقام الباركود من الصور على جهازك مجاناً ودون إنترنت.',
+      ocrFail:'⚠️ تعذّر تشغيل القارئ — تأكد من الاتصال بالإنترنت في أول استخدام، أو اكتب الباركود يدوياً.',
+      aiReady:'{p} يقرأ اسم المنتج والباركود من الصور (يحتاج إنترنت).', aiNoKey:'⚠️ الصق مفتاح API لاستخدام الذكاء الاصطناعي. حتى ذلك الحين يُستخدم القارئ على الجهاز.',
+      noKey:'أضف مفتاح API أولاً (ضمن "قراءة الصور بواسطة")', badKey:'تم رفض مفتاح API — يرجى التحقق منه',
       rateLimited:'تم بلوغ حد الاستخدام — انتظر قليلاً أو اختر "على الجهاز"', aiErr:'خطأ في الذكاء الاصطناعي: {m} — أدخل البيانات يدوياً أو اختر "على الجهاز"',
       testAi:'اختبار الاتصال', aiTesting:'جارٍ التحقق من المفتاح…', aiOk:'✅ تم الاتصال — سيقرأ {p} صورك (النموذج {m}).',
       aiNoModel:'⚠️ المفتاح يعمل، لكن لا يوجد في هذا الحساب نموذج يستطيع قراءة الصور.',
@@ -314,9 +312,8 @@
       openaiHelp:'سجّل الدخول في platform.openai.com وأنشئ مفتاح API والصقه هنا. اشتراك ChatGPT Plus لا يشمل استخدام API؛ يُحتسب بشكل منفصل.',
       geminiHelp:'مجاني: سجّل الدخول بحساب Google، اضغط "Create API key"، انسخ المفتاح والصقه هنا.',
       camNA:'الكاميرا غير متاحة — استخدم 🖼 صورة', camDenied:'تم رفض إذن الكاميرا — استخدم 🖼 صورة أو اسمح بالكاميرا من إعدادات المتصفح',
-      camBarcode:'وجّه الكاميرا إلى الباركود — يتم المسح تلقائياً', camDates:'ضع تاريخي الإنتاج والانتهاء داخل الإطار ثم اضغط التقاط',
-      camProd:'ضع تاريخ الإنتاج داخل الإطار ثم اضغط التقاط', camExp:'ضع تاريخ الانتهاء داخل الإطار ثم اضغط التقاط',
-      head:['#','اسم المنتج','الباركود','تاريخ الإنتاج','تاريخ الانتهاء','الأيام المتبقية','التشغيلة','الكمية'], sheet:'المنتجات'
+      camBarcode:'وجّه الكاميرا إلى الباركود — يتم المسح تلقائياً',
+      head:['#','اسم المنتج','الباركود','تاريخ الدخول','تاريخ الخروج','الأيام في المستودع','الحالة','التشغيلة','الكمية'], sheet:'سجل المستودع'
     }
   };
   let lang = (()=>{ try{ const v=localStorage.getItem('b2x_lang'); if(v==='en'||v==='ar') return v; }catch(e){} return /^ar\b/i.test(navigator.language||'')?'ar':'en'; })();
@@ -336,7 +333,16 @@
     get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
     set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
   };
+  // date/time values are local "YYYY-MM-DDTHH:MM" strings, the format of <input type=datetime-local>
+  const pad2 = n => String(n).padStart(2,'0');
+  const toLocal = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  const nowLocal = () => toLocal(new Date());
+  const parseLocal = s => { const [d,tm='00:00']=s.split('T'); const [y,m,dd]=d.split('-').map(Number), [hh,mi]=tm.split(':').map(Number); return new Date(y,m-1,dd,hh,mi); };
+  const showDT = s => s ? s.replace('T',' ') : '—';
+  const dayStart = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const daysIn = it => it.in ? Math.round((dayStart(it.out?parseLocal(it.out):new Date()) - dayStart(parseLocal(it.in)))/86400000) : null;
   items = store.get('b2x_items', []);
+  items.forEach(it=>{ if(!it.in) it.in = toLocal(it.added ? new Date(it.added) : new Date()); });
   names = store.get('b2x_names', {});
   const persist = () => { store.set('b2x_items', items); store.set('b2x_names', names); };
 
@@ -355,13 +361,6 @@
   // ---------- GS1 parsing ----------
   // Fixed-length AIs (data length), others are variable and end at GS (\x1d)
   const FIXED = {'00':18,'01':14,'02':14,'11':6,'12':6,'13':6,'15':6,'16':6,'17':6,'20':2};
-  function gs1Date(s){
-    if(!/^\d{6}$/.test(s)) return '';
-    let y=2000+ +s.slice(0,2), m=+s.slice(2,4), d=+s.slice(4,6);
-    if(m<1||m>12) return '';
-    if(d===0) d=new Date(y,m,0).getDate(); // DD=00 means end of month
-    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-  }
   function parseGS1(raw){
     let s = String(raw).replace(/^\](C1|d2|Q3|e0)/,'');
     const out = {};
@@ -390,12 +389,7 @@
     if(!out['01'] && !out['02']) return null;
     let gtin = out['01']||out['02'];
     if(gtin.length===14 && gtin[0]==='0') gtin = gtin.slice(1); // GTIN-14 with leading 0 → EAN-13
-    return {
-      code: gtin,
-      prod: gs1Date(out['11']||''),
-      exp: gs1Date(out['17']||'') || gs1Date(out['15']||'') || gs1Date(out['16']||''),
-      batch: out['10']||''
-    };
+    return { code: gtin, batch: out['10']||'' };
   }
 
   // ---------- barcode decoding ----------
@@ -442,82 +436,6 @@
     return new Promise(res=>toCanvas(img,1400).toBlob(b=>res(b),'image/jpeg',0.85));
   }
 
-  // ---------- Offline date finder ----------
-  // ---- Offline date finder (shared with page) ----
-  const MON={JAN:1,FEB:2,MAR:3,APR:4,MAY:5,JUN:6,JUL:7,AUG:8,SEP:9,SEPT:9,OCT:10,NOV:11,DEC:12};
-  const PROD_RE=/(PR[O0]D\w*|PRD|\bP\s?[\.\/:]\s?[D0O]\b|\bPD\b|[MA]F[G6]|MFD|MANUF\w*|PKD|PACK(ED|ING)?|\bMADE\b|\bMF\b|\bDOM\b|\bP\b|\bL?D\s?[\.\/:]?\s?PROD)/g;
-  const EXP_RE=/([E3F][XKS%][PR]\w*|EX\b|E\s?[\.\/:]\s?[D0O]\b|\bED\b|\bBB\w?\b|BEST\s*(BEFORE|BY)|USE\s*(BY|BEFORE)|\bE\b|EXPIRY|VALID\w*|\bUB\b)/g;
-  function fixDigits(s){ return s.replace(/[OQD@#]/g,'0').replace(/[IL|!]/g,'1').replace(/S/g,'5').replace(/B/g,'8').replace(/Z/g,'2').replace(/G/g,'6'); }
-  // OCR often turns 0 into 6/8/9 in dotted print: repair impossible values
-  function fixYear(s){ s=fixDigits(s); if(/^2[6895]\d{2}$/.test(s)) s='20'+s.slice(2); return +s; }
-  function fixPart(s,max){ s=fixDigits(s); let v=+s; if(v>max && /^[6895]\d$/.test(s)) v=+s[1]; return v; }
-  function mkDate(y,m,d){
-    if(y<100) y+=2000;
-    if(y<2015||y>2045||m<1||m>12) return null;
-    const last=new Date(y,m,0).getDate();
-    if(d!=null && (d<1||d>last)) return null;
-    return {y,m,d};
-  }
-  function iso(o){ return `${o.y}-${String(o.m).padStart(2,'0')}-${String(o.d).padStart(2,'0')}`; }
-  function findDates(text){
-    const T=' '+text.toUpperCase().replace(/[‐–—]/g,'-')+' ';
-    const out=[]; const used=[];
-    const take=(re,fn)=>{ re.lastIndex=0; let m; while((m=re.exec(T))){ const a=m.index,b=a+m[0].length;
-        if(used.some(([x,y])=>a<y&&b>x)) continue; const r=fn(m); if(r){ out.push({...r,idx:m.index}); used.push([a,b]); } else { re.lastIndex=a+1; } } };
-    const N='[0-9OQDILSBZG|@#]';
-    // 12 MAR 2026 / 12-MAR-26 / 12MAR26
-    take(new RegExp(`(?<![0-9A-Z])(${N}{1,2})\\s?[\\/\\.\\-]?\\s?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEPT?|OCT|NOV|DEC)[A-Z]*\\s?[\\/\\.\\-,]?\\s?(${N}{2,4})(?![0-9])`,'g'),
-      m=>{ const d=mkDate(fixYear(m[3]),MON[m[2]],fixPart(m[1],31)); return d&&{...d,kind:'full'}; });
-    // MAR 2026 / MAR-26
-    take(new RegExp(`(?<![A-Z])(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEPT?|OCT|NOV|DEC)[A-Z]*\\s?[\\/\\.\\-,]?\\s?(${N}{2,4})(?![0-9])`,'g'),
-      m=>{ const d=mkDate(fixYear(m[2]),MON[m[1]],null); return d&&{...d,kind:'month'}; });
-    // 2026/03/12
-    take(new RegExp(`(?<![0-9])(2${N}{3})\\s?[\\/\\.\\-]\\s?(${N}{1,2})\\s?[\\/\\.\\-]\\s?(${N}{1,2})(?![0-9])`,'g'),
-      m=>{ const d=mkDate(fixYear(m[1]),fixPart(m[2],12),fixPart(m[3],31)); return d&&{...d,kind:'full'}; });
-    // 12/03/2026, 12.03.26  (day first; switch to month-first only if impossible)
-    take(new RegExp(`(?<![0-9A-Z])(${N}{1,2})\\s?[\\/\\.\\-]\\s?(${N}{1,2})\\s?[\\/\\.\\-]\\s?(${N}{4}|${N}{2})(?![0-9])`,'g'),
-      m=>{ const a=fixPart(m[1],31), b=fixPart(m[2],12), y=fixYear(m[3]);
-        const d=mkDate(y,b,a)||mkDate(y,a,b); return d&&{...d,kind:'full'}; });
-    // 03/2026, 03.26 (month-year)
-    take(new RegExp(`(?<![0-9A-Z\\/\\.\\-])(${N}{1,2})\\s?[\\/\\.\\-]\\s?(20${N}{2}|${N}{2})(?![0-9\\/\\.\\-])`,'g'),
-      m=>{ const d=mkDate(fixYear(m[2]),fixPart(m[1],12),null); return d&&{...d,kind:'month'}; });
-    // 2027.03 / 2027-03 (year-month)
-    take(new RegExp(`(?<![0-9])(2${N}{3})\\s?[\\/\\.\\-]\\s?(${N}{1,2})(?![0-9\\/\\.\\-])`,'g'),
-      m=>{ const d=mkDate(fixYear(m[1]),fixPart(m[2],12),null); return d&&{...d,kind:'month'}; });
-    // 12 2027 / 12 03 2027 with spaces only
-    take(/(?<![0-9A-Z])([0-9O]{1,2}) ([0-9O]{1,2}) (2[0-9O]{3})(?![0-9])/g,
-      m=>{ const a=fixPart(m[1],31), b=fixPart(m[2],12), y=fixYear(m[3]); const d=mkDate(y,b,a)||mkDate(y,a,b); return d&&{...d,kind:'full'}; });
-    take(/(?<![0-9A-Z])([0-9O]{1,2}) (2[0-9O]{3})(?![0-9])/g,
-      m=>{ const d=mkDate(fixYear(m[2]),fixPart(m[1],12),null); return d&&{...d,kind:'month'}; });
-    // compact 12032026 / 20260312 / 120326 — only right after a label
-    take(/(?:EXP\w*|PROD\w*|MFG|MFD|PD|ED|BB)\s*[:\.]?\s*([0-9]{6}|[0-9]{8})(?![0-9])/g, m=>{
-      const s=m[1]; let d=null;
-      if(s.length===8) d = s.startsWith('20') ? mkDate(+s.slice(0,4),+s.slice(4,6),+s.slice(6,8)) : mkDate(+s.slice(4,8),+s.slice(2,4),+s.slice(0,2));
-      else d = mkDate(+s.slice(4,6),+s.slice(2,4),+s.slice(0,2)) || mkDate(+s.slice(0,2),+s.slice(2,4),+s.slice(4,6));
-      if(d){ m.index += m[0].indexOf(s); }
-      return d&&{...d,kind:'full'};
-    });
-    // label nearest before each date (within 30 chars)
-    for(const o of out){
-      const win=T.slice(Math.max(0,o.idx-30),o.idx);
-      let best=null;
-      for(const [lab,re] of [['prod',PROD_RE],['exp',EXP_RE]]){ re.lastIndex=0; let m; while((m=re.exec(win))){ if(!best||m.index>=best.pos) best={lab,pos:m.index}; } }
-      o.label=best?best.lab:null;
-    }
-    return out.sort((a,b)=>a.idx-b.idx);
-  }
-  function pickDates(text, today=new Date()){
-    const ds=findDates(text);
-    const key=o=>o.y*10000+o.m*100+(o.d||1);
-    const asProd=o=>iso({...o,d:o.d||1}), asExp=o=>iso({...o,d:o.d||new Date(o.y,o.m,0).getDate()});
-    let prod=ds.find(o=>o.label==='prod'), exp=ds.find(o=>o.label==='exp');
-    const free=ds.filter(o=>!o.label);
-    if(!prod&&!exp&&free.length>=2){ const s=[...free].sort((a,b)=>key(a)-key(b)); prod=s[0]; exp=s[s.length-1]; if(key(prod)===key(exp)) prod=null; }
-    else if(!exp&&prod){ exp=free.filter(o=>key(o)>key(prod)).sort((a,b)=>key(b)-key(a))[0]; }
-    else if(!prod&&exp){ prod=free.filter(o=>key(o)<key(exp)).sort((a,b)=>key(a)-key(b))[0]; }
-    else if(!prod&&!exp&&free.length===1){ const t=today.getFullYear()*10000+(today.getMonth()+1)*100+today.getDate(); if(key(free[0])>=t) exp=free[0]; else prod=free[0]; }
-    return { prod: prod?asProd(prod):'', exp: exp?asExp(exp):'' };
-  }
   // EAN/UPC digits from OCR text (checksum-validated)
   function findBarcodeDigits(text){
     const runs=(text.replace(/[ \t]/g,'').match(/[0-9]{8,14}/g)||[]);
@@ -561,33 +479,6 @@
     const k=255/Math.max(1,hi-lo); for(let j=0;j<n;j++) g[j]=(g[j]-lo)*k;
     return {w:c.width,h:c.height,g};
   }
-  function minFilter({w,h,g}, r){ // grows dark dots so they join into strokes
-    const t=new Uint8ClampedArray(g.length), o=new Uint8ClampedArray(g.length);
-    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ let m=255; for(let k=-r;k<=r;k++){ const xx=Math.min(w-1,Math.max(0,x+k)); const v=g[y*w+xx]; if(v<m)m=v; } t[y*w+x]=m; }
-    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ let m=255; for(let k=-r;k<=r;k++){ const yy=Math.min(h-1,Math.max(0,y+k)); const v=t[yy*w+x]; if(v<m)m=v; } o[y*w+x]=m; }
-    return {w,h,g:o};
-  }
-  function boxBlur({w,h,g}, r){
-    let src=g;
-    for(let pass=0;pass<2;pass++){
-      const t=new Uint8ClampedArray(src.length), o=new Uint8ClampedArray(src.length), d=2*r+1;
-      for(let y=0;y<h;y++){ let s=0; for(let k=-r;k<=r;k++) s+=src[y*w+Math.min(w-1,Math.max(0,k))];
-        for(let x=0;x<w;x++){ t[y*w+x]=s/d; s+=src[y*w+Math.min(w-1,x+r+1)]-src[y*w+Math.max(0,x-r)]; } }
-      for(let x=0;x<w;x++){ let s=0; for(let k=-r;k<=r;k++) s+=t[Math.min(h-1,Math.max(0,k))*w+x];
-        for(let y=0;y<h;y++){ o[y*w+x]=s/d; s+=t[Math.min(h-1,y+r+1)*w+x]-t[Math.max(0,y-r)*w+x]; } }
-      src=o;
-    }
-    return {w,h,g:src};
-  }
-  function otsu({w,h,g}){
-    const hist=new Uint32Array(256); for(const v of g) hist[v]++;
-    const n=g.length; let sum=0; for(let i=0;i<256;i++) sum+=i*hist[i];
-    let sB=0,wB=0,best=0,th=128;
-    for(let t=0;t<256;t++){ wB+=hist[t]; if(!wB) continue; const wF=n-wB; if(!wF) break;
-      sB+=t*hist[t]; const mB=sB/wB, mF=(sum-sB)/wF, v=wB*wF*(mB-mF)*(mB-mF); if(v>best){best=v;th=t;} }
-    const o=new Uint8ClampedArray(n); for(let j=0;j<n;j++) o[j]=g[j]>th?255:0;
-    return {w,h,g:o};
-  }
   function toImg({w,h,g}){
     const c=document.createElement('canvas'); c.width=w; c.height=h;
     const x=c.getContext('2d'), d=x.createImageData(w,h);
@@ -601,33 +492,6 @@
     return (r && r.data && r.data.text) || '';
   }
   async function ocrText(img, psm){ return ocrRun(toImg(grayOf(img,2000)), psm); }
-  let lastOcrText='';
-  async function ocrDates(img, onPass){
-    const base=grayOf(img,1600);
-    const passes=[
-      ['plain',   ()=>base, 6],
-      ['dots',    ()=>minFilter(base,1), 6],
-      ['smooth',  ()=>otsu(boxBlur(base,2)), 6],
-      ['plain11', ()=>base, 11],
-      ['dots2',   ()=>minFilter(base,2), 6],
-      ['smooth2', ()=>otsu(boxBlur(base,3)), 6],
-    ];
-    const votes={prod:{},exp:{}}, texts=[];
-    const top=f=>{ let b='',n=0; for(const [k,v] of Object.entries(votes[f])) if(v>n){b=k;n=v;} return [b,n]; };
-    for(let i=0;i<passes.length;i++){
-      const [name,mk,psm]=passes[i];
-      onPass && onPass(i+1, passes.length);
-      let t=''; try{ t=await ocrRun(toImg(mk()), psm); }catch(e){ if(i===0) throw e; }
-      texts.push(t.trim());
-      const r=pickDates(t);
-      if(r.prod) votes.prod[r.prod]=(votes.prod[r.prod]||0)+1;
-      if(r.exp)  votes.exp[r.exp]=(votes.exp[r.exp]||0)+1;
-      const [p,pn]=top('prod'), [e,en]=top('exp');
-      if(e && en>=2 && (pn>=2 || (i>=3 && !p))) break;   // two passes agree
-    }
-    lastOcrText=texts.filter(Boolean).join('\n—\n');
-    return { prod: top('prod')[0], exp: top('exp')[0] };
-  }
   const engine = () => (document.querySelector('input[name=engine]:checked')||{}).value;
 
   // ---------- AI reading ----------
@@ -635,14 +499,6 @@
 Reply with ONLY a JSON object: {"name": string, "barcode": string}
 - name: the product name if printed in the photo (brand + product + size). Prefer LANGNAME if both Arabic and English exist. "" if not visible.
 - barcode: the digits printed under the barcode, digits only. "" if not readable.
-Never guess; use "" for anything unclear.`;
-  const PROMPT_DATES = `You are looking at a close-up photo of the dates printed on a product package.
-Reply with ONLY a JSON object: {"production_date": string, "expiry_date": string, "batch": string}
-- production_date: manufacturing / production / factory date (labels like PROD, P.D, MFG, MFD, PKD, تاريخ الإنتاج, الإنتاج). Format YYYY-MM-DD.
-- expiry_date: expiration / best before / use by date (labels like EXP, E.D, BB, Best Before, Use By, تاريخ الانتهاء, الانتهاء, صالح حتى). Format YYYY-MM-DD.
-- Dates here are usually day/month/year (e.g. 05/03/26 = 2026-03-05). If only month and year are shown, use the last day of that month for expiry and the first day for production.
-- If two dates have no labels, the earlier one is production and the later one is expiry.
-- batch: lot / batch number if printed, else "".
 Never guess; use "" for anything unclear.`;
   const AI = {
     openai:{ label:'openaiLabel', model:'gpt-4o-mini', help:'openaiHelp', link:'https://platform.openai.com/api-keys' },
@@ -733,7 +589,6 @@ Never guess; use "" for anything unclear.`;
       show({bad_key:t('badKey'),no_credit:t('noCredit'),rate_limited:t('rateLimited')}[c] || t('aiErr',{m:(err&&err.message)||'no answer'}),'bad');
     }finally{ testing=false; $('aiTest').disabled=false; }
   }
-  const validDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s||'') ? s : '';
   const aiOn = () => engine()!=='local' && !!aiKey(engine());
 
   async function openPhoto(e, n){
@@ -747,13 +602,10 @@ Never guess; use "" for anything unclear.`;
   }
   function missingNote(){
     const m=[]; if(!F.name.value) m.push(t('w_name')); if(!F.code.value) m.push(t('w_barcode'));
-    if(!F.prod.value) m.push(t('prodW')); if(!F.exp.value) m.push(t('expW'));
     return '<br>'+(m.length?t('stillNeeded',{x:esc(m.join(lang==='ar'?'، ':', '))}):t('allSet'));
   }
   function refreshNotes(){
-    if($('wrap1').style.display==='flex' && $('status1').dataset.base) $('status1').innerHTML=$('status1').dataset.base;
-    if($('wrap2').style.display==='flex' && $('status2').dataset.base) $('status2').innerHTML=$('status2').dataset.base+missingNote();
-    else if($('status1').dataset.base) $('status1').innerHTML=$('status1').dataset.base+missingNote();
+    if($('status1').dataset.base) $('status1').innerHTML=$('status1').dataset.base+missingNote();
   }
   function setS(n, html, final){ const el=$('status'+n); if(final){ el.dataset.base=html; refreshNotes(); } else el.innerHTML=html; }
 
@@ -769,11 +621,7 @@ Never guess; use "" for anything unclear.`;
     if(raw){
       const g=parseGS1(raw);
       F.code.value = g ? g.code : raw.trim(); found.push(t('barcodeX',{c:F.code.value}));
-      if(g){
-        if(g.prod){ F.prod.value=g.prod; found.push(t('prodW')); }
-        if(g.exp){ F.exp.value=g.exp; found.push(t('expW')); }
-        if(g.batch){ F.batch.value=g.batch; found.push(t('batchW')); }
-      }
+      if(g && g.batch){ F.batch.value=g.batch; found.push(t('batchW')); }
     }
     if(!F.code.value && !aiOn() && img){
       setS(1,'<span class="spin"></span>'+t('readingDigits'));
@@ -790,84 +638,47 @@ Never guess; use "" for anything unclear.`;
       }catch(err){ aiError(err); }
     }
     setS(1, found.length?'✅ '+t('found',{x:esc(found.join(', '))}):t('barcodeNotRead'), true);
-    if(F.prod.value && F.exp.value) return;
-    $('cam2Btn').classList.add('primary'); $('cam1Btn').classList.remove('primary');
-    $('cam2Btn').scrollIntoView({behavior:'smooth',block:'center'});
+    (checkStock() ? $('stockNote') : F.name.value ? $('saveBtn') : F.name).scrollIntoView({behavior:'smooth',block:'center'});
   }
 
-  // ---------- Photo 2: dates ----------
-  let dateTarget=null; // 'prod' / 'exp' when a single date's Scan button was used
-  $('cam2').addEventListener('change', async e=>{
-    const only=dateTarget; dateTarget=null;
-    const img=await openPhoto(e,2); if(img) handleDates(img, only);
-  });
-  async function handleDates(img, only){
-    lastOcrText='';
-    const found=[];
-    const want = f => !only || only===f;
-    // with one date in the photo the reader may label it either way; take whichever it found
-    const pick = (prod, exp) => only==='prod' ? {prod:prod||exp||'', exp:''} : only==='exp' ? {prod:'', exp:exp||prod||''} : {prod, exp};
-    const pre = () => found.length?`✅ ${esc(found.join(', '))}<br>`:'';
-    setS(2,'<span class="spin"></span>'+t('readingDates'));
-    // Some packs have a GS1 DataMatrix next to the dates — try it first
-    const raw=await decode(img); const g=raw&&parseGS1(raw);
-    if(g){
-      if(g.prod && want('prod')){ F.prod.value=g.prod; found.push(t('prodX',{d:g.prod})); }
-      if(g.exp && want('exp')){ F.exp.value=g.exp; found.push(t('expX',{d:g.exp})); }
-      if(g.batch && !F.batch.value) F.batch.value=g.batch;
-      if(!F.code.value){ F.code.value=g.code; if(names[g.code]&&!F.name.value) F.name.value=names[g.code]; }
-    }
-    const needProd = want('prod') && !(g&&g.prod), needExp = want('exp') && !(g&&g.exp);
-    const fill = v => {
-      if(needProd && v.prod){ F.prod.value=v.prod; found.push(t('prodX',{d:v.prod})); }
-      if(needExp && v.exp){ F.exp.value=v.exp; found.push(t('expX',{d:v.exp})); }
-    };
-    if(needProd || needExp){
-      if(aiOn()){
-        setS(2,pre()+'<span class="spin"></span>'+t('aiDates'));
-        try{
-          const v=await askAI(PROMPT_DATES, await smallJpeg(img));
-          fill(pick(validDate(v.production_date), validDate(v.expiry_date)));
-          if(v.batch && !F.batch.value) F.batch.value=v.batch;
-        }catch(err){ aiError(err); }
-      } else {
-        setS(2,pre()+'<span class="spin"></span>'+t('phoneDates'));
-        try{
-          const p0=pre();
-          const v=await ocrDates(img,(i,n)=>setS(2,p0+'<span class="spin"></span>'+t('phoneDates')+' '+t('tryN',{i,n})));
-          fill(pick(v.prod, v.exp));
-        }catch(err){ toast(t('ocrOff')); }
-      }
-    }
-    let msg = found.length?'✅ '+t('found',{x:esc(found.join(', '))}):t('datesNotRead');
-    if(!aiOn() && lastOcrText) msg += `<details style="margin-top:6px"><summary>${esc(t('phoneText'))}</summary><pre style="white-space:pre-wrap;font-size:12px;margin:4px 0 0" dir="ltr">${esc(lastOcrText.slice(0,1200))}</pre></details>`;
-    setS(2, msg, true);
-    $('cam2Btn').classList.remove('primary'); $('cam1Btn').classList.add('primary');
-    (!F.name.value?F.name:!F.exp.value?F.exp:$('saveBtn')).focus();
+  // An item with this barcode already in the warehouse (no date out yet): offer to check it out
+  const openItem = code => code ? items.filter(x=>x.code===code && !x.out).sort((a,b)=>a.in<b.in?-1:1)[0] : null;
+  function checkStock(){
+    const el=$('stockNote'), it=editingId?null:openItem(F.code.value.trim());
+    el.hidden=!it; if(!it) return false;
+    el.innerHTML=`<span>${esc(t('inStock',{d:showDT(it.in)}))}</span><button class="btn primary" type="button" data-checkout="${it.id}">${esc(t('markOut'))}</button>`;
+    return true;
   }
+  function checkout(id){
+    const it=items.find(x=>x.id===id); if(!it) return;
+    it.out=nowLocal(); persist(); render(); checkStock(); toast(t('checkedOut')+' — '+(it.name||it.code));
+  }
+  $('stockNote').addEventListener('click', e=>{ const b=e.target.closest('[data-checkout]'); if(b){ checkout(b.dataset.checkout); clearForm(); } });
 
   // Scanner-gun / typed barcode: fill remembered name
   F.code.addEventListener('change', ()=>{
     const g=parseGS1(F.code.value);
-    if(g){ F.code.value=g.code; if(g.prod) F.prod.value=g.prod; if(g.exp) F.exp.value=g.exp; if(g.batch) F.batch.value=g.batch; }
+    if(g){ F.code.value=g.code; if(g.batch) F.batch.value=g.batch; }
     const c=F.code.value.trim(); if(c && names[c] && !F.name.value) F.name.value=names[c];
+    checkStock();
   });
-  F.code.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); F.code.dispatchEvent(new Event('change')); (F.name.value?F.exp:F.name).focus(); }});
+  F.code.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); F.code.dispatchEvent(new Event('change')); (checkStock()?$('stockNote').querySelector('button'):F.name.value?$('saveBtn'):F.name).focus(); }});
 
   // ---------- save / edit ----------
   function clearForm(){
-    Object.values(F).forEach(i=>i.value=''); F.qty.value='1'; editingId=null;
-    $('saveBtn').textContent=t('save');
-    [1,2].forEach(n=>{ $('wrap'+n).style.display='none'; $('status'+n).innerHTML=''; delete $('status'+n).dataset.base; });
-    $('cam1Btn').classList.add('primary'); $('cam2Btn').classList.remove('primary');
+    Object.values(F).forEach(i=>i.value=''); F.qty.value='1'; F.in.value=nowLocal(); editingId=null;
+    $('saveBtn').textContent=t('save'); $('stockNote').hidden=true;
+    $('wrap1').style.display='none'; $('status1').innerHTML=''; delete $('status1').dataset.base;
   }
   $('clearBtn').onclick=clearForm;
+  document.querySelectorAll('[data-now]').forEach(b=>b.onclick=()=>{ F[b.dataset.now].value=nowLocal(); });
   $('form').addEventListener('submit', e=>{
     e.preventDefault();
-    const rec={ name:F.name.value.trim(), code:F.code.value.trim(), prod:F.prod.value, exp:F.exp.value,
+    const rec={ name:F.name.value.trim(), code:F.code.value.trim(), in:F.in.value, out:F.out.value,
       batch:F.batch.value.trim(), qty:F.qty.value===''?'':Number(F.qty.value) };
     if(!rec.name && !rec.code){ toast(t('needNameOrCode')); F.name.focus(); return; }
-    if(rec.prod && rec.exp && rec.prod>rec.exp){ toast(t('prodAfterExp')); return; }
+    if(!rec.in){ toast(t('needIn')); F.in.focus(); return; }
+    if(rec.out && rec.out<rec.in){ toast(t('outBeforeIn')); F.out.focus(); return; }
     if(editingId){
       const i=items.findIndex(x=>x.id===editingId); if(i>=0) items[i]={...items[i],...rec};
       toast(t('itemUpdated'));
@@ -879,48 +690,46 @@ Never guess; use "" for anything unclear.`;
     persist(); render(); clearForm();
   });
 
-  function daysLeft(exp){
-    if(!exp) return null;
-    const t=new Date(); t.setHours(0,0,0,0);
-    const [y,m,d]=exp.split('-').map(Number);
-    return Math.round((new Date(y,m-1,d)-t)/86400000);
+  function badge(it){
+    const d=daysIn(it); if(d===null) return '';
+    return it.out ? `<span class="badge out">${esc(t('stayed',{n:d}))}</span>` : `<span class="badge ok">${esc(t('inSince',{n:d}))}</span>`;
   }
-  function badge(exp){
-    const d=daysLeft(exp); if(d===null) return '';
-    if(d<0) return `<span class="badge bad">${esc(t('expiredAgo',{n:-d}))}</span>`;
-    if(d<=30) return `<span class="badge warn">${esc(t('expiresIn',{n:d}))}</span>`;
-    return `<span class="badge ok">${esc(t('daysLeft',{n:d}))}</span>`;
-  }
+  let filter='all';
   function render(){
     $('count').textContent=items.length;
     const L=$('list');
-    if(!items.length){ L.innerHTML=`<div class="empty">${esc(t('empty'))}</div>`; return; }
-    L.innerHTML=items.map(it=>`
+    document.querySelectorAll('[data-filter]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.filter===filter)));
+    const shown=items.filter(it=>filter==='all'||(filter==='in')===!it.out);
+    if(!shown.length){ L.innerHTML=`<div class="empty">${esc(t(items.length?'emptyFilter':'empty'))}</div>`; return; }
+    L.innerHTML=shown.map(it=>`
       <div class="item">
         <div class="info">
           <div class="name">${esc(it.name||t('noName'))}</div>
           <div class="meta">🔢 <bdi>${esc(it.code||'—')}</bdi>${it.qty!==''&&it.qty!=null?` · ${esc(t('qtyShort'))} ${esc(it.qty)}`:''}${it.batch?` · ${esc(t('lot'))} <bdi>${esc(it.batch)}</bdi>`:''}</div>
-          <div class="meta">🏭 ${esc(t('prodW'))}: <bdi>${esc(it.prod||'—')}</bdi> &nbsp; ⏳ ${esc(t('expW'))}: <bdi>${esc(it.exp||'—')}</bdi></div>
-          ${badge(it.exp)}
+          <div class="meta">📥 ${esc(t('inW'))}: <bdi>${esc(showDT(it.in))}</bdi> &nbsp; 📤 ${esc(t('outW'))}: <bdi>${esc(showDT(it.out))}</bdi></div>
+          ${badge(it)}
         </div>
         <div class="acts">
+          ${it.out?'':`<button class="btn primary" data-checkout="${it.id}">${esc(t('checkout'))}</button>`}
           <button class="btn" data-edit="${it.id}">${esc(t('edit'))}</button>
           <button class="btn" data-del="${it.id}">${esc(t('del'))}</button>
         </div>
       </div>`).join('');
   }
   $('list').addEventListener('click', async e=>{
-    const ed=e.target.closest('[data-edit]'), dl=e.target.closest('[data-del]');
+    const ed=e.target.closest('[data-edit]'), dl=e.target.closest('[data-del]'), co=e.target.closest('[data-checkout]');
+    if(co) checkout(co.dataset.checkout);
     if(ed){
       const it=items.find(x=>x.id===ed.dataset.edit); if(!it) return;
-      editingId=it.id; F.name.value=it.name||''; F.code.value=it.code||''; F.prod.value=it.prod||'';
-      F.exp.value=it.exp||''; F.batch.value=it.batch||''; F.qty.value=it.qty??'';
+      editingId=it.id; F.name.value=it.name||''; F.code.value=it.code||''; F.in.value=it.in||'';
+      F.out.value=it.out||''; F.batch.value=it.batch||''; F.qty.value=it.qty??''; $('stockNote').hidden=true;
       $('saveBtn').textContent=t('update'); $('form').scrollIntoView({behavior:'smooth'}); F.name.focus();
     }
     if(dl){
       if(await ask(t('askDel'))){ items=items.filter(x=>x.id!==dl.dataset.del); persist(); render(); }
     }
   });
+  document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{ filter=b.dataset.filter; render(); });
   $('wipeBtn').onclick=async()=>{
     if(!items.length) return;
     if(await ask(t('askWipe',{n:items.length}))){ items=[]; persist(); render(); }
@@ -928,18 +737,20 @@ Never guess; use "" for anything unclear.`;
 
   // ---------- export ----------
   // Excel date serials written directly: JS Date objects pick up the time zone's historical offset (e.g. +52s in Riyadh)
-  const serial = s => { const [y,m,d]=s.split('-').map(Number); return (Date.UTC(y,m-1,d)-Date.UTC(1899,11,30))/86400000; };
-  const dateCell = s => s ? {t:'n', v:serial(s), z:'yyyy-mm-dd'} : '';
+  const serial = s => { const d=parseLocal(s); return (Date.UTC(d.getFullYear(),d.getMonth(),d.getDate(),d.getHours(),d.getMinutes())-Date.UTC(1899,11,30))/86400000; };
+  const dateCell = s => s ? {t:'n', v:serial(s), z:'yyyy-mm-dd hh:mm'} : '';
+  const statusOf = it => t(it.out?'fOut':'fIn');
   function rows(forExcel){
     return items.slice().reverse().map((it,i)=>{
-      const left=daysLeft(it.exp)??'';
-      if(!forExcel) return [i+1, it.name||'', it.code||'', it.prod||'', it.exp||'', left, it.batch||'', it.qty??''];
+      const days=daysIn(it)??'', r=i+2;
+      if(!forExcel) return [i+1, it.name||'', it.code||'', showDT(it.in), it.out?showDT(it.out):'', days, statusOf(it), it.batch||'', it.qty??''];
       return [
         i+1, it.name||'',
         {t:'s', v:String(it.code||'')}, // text so Excel doesn't turn barcodes into 6.28E+12
-        dateCell(it.prod), dateCell(it.exp),
-        it.exp ? {t:'n', v:left, f:`E${i+2}-TODAY()`, z:'0'} : '', // live, so the sheet stays right on later days
-        it.batch||'', it.qty??''
+        dateCell(it.in), dateCell(it.out),
+        // live: items still in the warehouse keep counting up when the file is opened later
+        it.in ? {t:'n', v:days, f: it.out ? `INT(E${r})-INT(D${r})` : `TODAY()-INT(D${r})`, z:'0'} : '',
+        statusOf(it), it.batch||'', it.qty??''
       ];
     });
   }
@@ -947,14 +758,14 @@ Never guess; use "" for anything unclear.`;
     if(!items.length){ toast(t('noItems')); return; }
     if(!window.XLSX){ toast(t('xlsxMissing')); return; }
     const ws=XLSX.utils.aoa_to_sheet([t('head'),...rows(true)]);
-    ws['!cols']=[{wch:5},{wch:34},{wch:18},{wch:16},{wch:16},{wch:10},{wch:14},{wch:10}];
-    ws['!autofilter']={ref:`A1:H${items.length+1}`};
+    ws['!cols']=[{wch:5},{wch:34},{wch:18},{wch:18},{wch:18},{wch:12},{wch:14},{wch:14},{wch:10}];
+    ws['!autofilter']={ref:`A1:I${items.length+1}`};
     const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,t('sheet'));
     if(lang==='ar') wb.Workbook={Views:[{RTL:true}]};
     const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
     const stamp=new Date().toISOString().slice(0,10);
     const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
-    const link=document.createElement('a'); link.href=url; link.download=`items-${stamp}.xlsx`;
+    const link=document.createElement('a'); link.href=url; link.download=`warehouse-log-${stamp}.xlsx`;
     document.body.appendChild(link); link.click(); link.remove();
     setTimeout(()=>URL.revokeObjectURL(url),4000);
     toast(t('downloaded'));
@@ -966,10 +777,10 @@ Never guess; use "" for anything unclear.`;
     catch(e){ toast(t('copyBlocked')); }
   };
 
-  applyLang(); $('saveBtn').textContent=t('save'); render();
+  applyLang(); clearForm(); render();
   document.querySelectorAll('[data-lang]').forEach(b=>b.addEventListener('click',()=>{
     lang=b.dataset.lang; try{ localStorage.setItem('b2x_lang',lang); }catch(e){}
-    applyLang(); $('saveBtn').textContent=t(editingId?'update':'save'); render(); showEngine(); refreshNotes();
+    applyLang(); $('saveBtn').textContent=t(editingId?'update':'save'); render(); showEngine(); refreshNotes(); checkStock();
   }));
   function showEngine(){
     const p=engine();
@@ -996,20 +807,15 @@ Never guess; use "" for anything unclear.`;
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ toast(t('camNA')); return; }
     try{
       stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
-    }catch(e){ toast(t('camDenied')); if(mode!=='barcode'){ dateTarget=mode==='dates'?null:mode; $('cam2').click(); } return; }
+    }catch(e){ toast(t('camDenied')); return; }
     const v=$('camVideo'); v.srcObject=stream; await v.play().catch(()=>{});
     $('camModal').classList.add('show');
     const track=stream.getVideoTracks()[0], caps=track.getCapabilities?track.getCapabilities():{};
     $('camTorch').style.display=caps.torch?'':'none';
     if(caps.focusMode && caps.focusMode.includes('continuous')) track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{});
-    if(mode==='barcode'){
-      $('camFrame').style.cssText='top:32%;height:22%'; $('camShot').style.display='none';
-      camMsg(t('camBarcode'));
-      startBarcodeLoop();
-    } else {
-      $('camFrame').style.cssText=mode==='dates'?'top:28%;height:30%':'top:34%;height:18%'; $('camShot').style.display='';
-      camMsg(t(mode==='prod'?'camProd':mode==='exp'?'camExp':'camDates'));
-    }
+    $('camFrame').style.cssText='top:32%;height:22%';
+    camMsg(t('camBarcode'));
+    startBarcodeLoop();
   }
   function closeCam(){
     clearTimeout(camLoop); camLoop=null;
@@ -1055,15 +861,7 @@ Never guess; use "" for anything unclear.`;
     tick();
   }
   $('cam1Btn').onclick=()=>openCam('barcode');
-  $('cam2Btn').onclick=()=>openCam('dates');
   $('camClose').onclick=closeCam;
-  document.querySelectorAll('[data-scan]').forEach(b=>b.onclick=()=>openCam(b.dataset.scan));
-  $('camShot').onclick=async()=>{
-    const mode=camMode, c=frameCanvas(true); closeCam(); if(!c) return;
-    const img=await canvasToImg(c);
-    $('photo2').src=img.src; $('wrap2').style.display='flex';
-    handleDates(img, mode==='prod'||mode==='exp' ? mode : null);
-  };
   $('camTorch').onclick=()=>{
     if(!stream) return; const t=stream.getVideoTracks()[0]; const on=!t._torch; t._torch=on;
     t.applyConstraints({advanced:[{torch:on}]}).catch(()=>{});

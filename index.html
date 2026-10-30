@@ -1,493 +1,870 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!--APP-->
-<title>Barcode To Excel</title>
-<meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Scan barcodes with your camera, a photo or a USB scanner and export the list to an Excel file.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-<style>
-/* Layout: a stock-room counter. Scanner on the left, the running tally sheet on the right; stacks on phones. */
-:root {
-  --bg: #eef2f0;
-  --surface: #ffffff;
-  --ink: #16201b;
-  --muted: #5a6962;
-  --line: #d3dcd8;
-  --accent: #1d6b47;
-  --accent-ink: #ffffff;
-  --laser: #e0322b;
-  --chip: #e3ece7;
-  --danger: #b4261f;
-  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", Arial, sans-serif;
-  --font-body: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0e1311; --surface: #161d1a; --ink: #e4ebe7; --muted: #93a39b; --line: #2a3530;
-    --accent: #4fbf88; --accent-ink: #08130d; --laser: #ff5a50; --chip: #22302a; --danger: #ff7a70;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0e1311; --surface: #161d1a; --ink: #e4ebe7; --muted: #93a39b; --line: #2a3530;
-  --accent: #4fbf88; --accent-ink: #08130d; --laser: #ff5a50; --chip: #22302a; --danger: #ff7a70;
-  color-scheme: dark;
-}
-* { box-sizing: border-box; }
-[hidden] { display: none !important; }
-html, body { margin: 0; }
-body {
-  background: var(--bg); color: var(--ink);
-  font: 15px/1.5 var(--font-body);
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 20px 40px;
-}
-.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 20px; }
-header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
-h1 { font: 700 2rem/1.1 var(--font-display); margin: 0; letter-spacing: .01em; text-wrap: balance; }
-h1 span { color: var(--accent); }
-.sub { color: var(--muted); margin: 4px 0 0; max-width: 60ch; }
-.stats { display: flex; gap: 24px; font-variant-numeric: tabular-nums; }
-.stat b { display: block; font: 700 1.6rem/1 var(--font-display); }
-.stat small { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; }
-main { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 20px; align-items: start; }
-@media (max-width: 820px) { main { grid-template-columns: minmax(0, 1fr); } }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 14px; min-width: 0; }
-.panel h2 { font: 600 .78rem/1 var(--font-body); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 0; }
-.viewfinder { position: relative; aspect-ratio: 4 / 3; max-width: 100%; background: #0b0f0d; border-radius: 6px; overflow: hidden; display: grid; place-items: center; }
-.viewfinder video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.viewfinder .idle { position: absolute; inset: 0; display: grid; place-items: center; color: #9fb0a8; font-size: .9rem; text-align: center; padding: 16px; }
-.viewfinder:not(.live) .laser { display: none; }
-.viewfinder .laser { position: absolute; left: 8%; right: 8%; top: 50%; height: 2px; background: var(--laser); box-shadow: 0 0 10px var(--laser); opacity: .85; }
-.viewfinder .corners { position: absolute; inset: 14% 8%; border: 2px dashed rgba(255,255,255,.35); border-radius: 6px; }
-.viewfinder.hit { outline: 3px solid var(--accent); outline-offset: -3px; }
-@media (prefers-reduced-motion: no-preference) {
-  .viewfinder.live .laser { animation: sweep 1.8s ease-in-out infinite alternate; }
-  @keyframes sweep { from { top: 22%; } to { top: 78%; } }
-}
-.row { display: flex; flex-wrap: wrap; gap: 8px; }
-button, .btn {
-  font: 600 .9rem/1 var(--font-body); padding: 10px 14px; border-radius: 6px; cursor: pointer;
-  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
-  display: inline-flex; align-items: center; gap: 6px; min-height: 40px;
-}
-button:hover, .btn:hover { border-color: var(--muted); }
-button:focus-visible, .btn:focus-within, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-button.danger { color: var(--danger); }
-button.armed { background: var(--danger); color: var(--surface); border-color: var(--danger); }
-button:disabled { opacity: .5; cursor: not-allowed; }
-.btn input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-.btn { position: relative; }
-select, input[type="text"] {
-  font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
-  border-radius: 6px; padding: 9px 10px; min-height: 40px; min-width: 0;
-}
-form.manual { display: flex; gap: 8px; }
-form.manual input { flex: 1; font-family: var(--font-mono); }
-.check { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: .9rem; }
-.status { min-height: 1.5em; font-size: .9rem; color: var(--muted); margin: 0; }
-.status.err { color: var(--danger); }
-.status.ok { color: var(--accent); }
-.sheet-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
-.banner { background: var(--chip); border-radius: 6px; padding: 10px 12px; font-size: .9rem; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
-.table-scroll { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; min-width: 620px; }
-th { text-align: left; font: 600 .72rem/1 var(--font-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 8px; border-bottom: 2px solid var(--line); }
-td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-tr.fresh td { background: var(--chip); }
-td.code { font-family: var(--font-mono); font-weight: 500; white-space: nowrap; }
-td.num { color: var(--muted); width: 3em; }
-td.time { color: var(--muted); font-size: .85rem; white-space: nowrap; }
-.chip { font: 500 .72rem/1 var(--font-mono); background: var(--chip); padding: 4px 6px; border-radius: 4px; white-space: nowrap; }
-.qty { display: inline-flex; align-items: center; gap: 4px; }
-.qty button { min-height: 30px; padding: 4px 9px; }
-.qty output { min-width: 2.2em; text-align: center; font-weight: 600; }
-td input[type="text"] { width: 100%; min-height: 32px; padding: 5px 8px; }
-.del { min-height: 30px; padding: 4px 9px; color: var(--muted); }
-.empty { text-align: center; color: var(--muted); padding: 32px 8px; }
-.ex { font: 500 .68rem/1 var(--font-body); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-left: 6px; }
-footer { color: var(--muted); font-size: .82rem; }
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Barcode to Excel</title>
+<meta name="theme-color" content="#0f7a4f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+  :root{
+    --bg:#f4f6f5; --card:#fff; --ink:#17201c; --muted:#5f6b66; --line:#dfe5e2;
+    --accent:#0f7a4f; --accent-ink:#fff; --warn:#b45309; --bad:#b91c1c; --ok:#15803d;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0f1412; --card:#18201c; --ink:#e8efeb; --muted:#9aa8a1; --line:#2a3530;
+      --accent:#2fb37a; --accent-ink:#06130d; --warn:#f59e0b; --bad:#f87171; --ok:#4ade80; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  header{padding:18px 16px 6px;max-width:720px;margin:0 auto}
+  header h1{margin:0;font-size:22px}
+  header p{margin:4px 0 0;color:var(--muted);font-size:14px}
+  main{max-width:720px;margin:0 auto;padding:8px 16px 40px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+  .card h2{margin:0 0 12px;font-size:16px}
+  .btn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--ink);
+    border-radius:10px;padding:11px 14px;font:inherit;font-weight:600;cursor:pointer}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .btn.big{width:100%;padding:16px;font-size:18px}
+  .btn:disabled{opacity:.5;cursor:default}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row > *{flex:1 1 140px}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px;font-weight:600}
+  input[type=text],input[type=date],input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);
+    border-radius:10px;background:var(--bg);color:var(--ink);font:inherit}
+  input:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .photoWrap{display:none;margin-top:10px;gap:12px;align-items:flex-start}
+  .thumb{width:80px;height:80px;flex:0 0 80px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+  .status{font-size:14px;color:var(--muted);flex:1}
+  .seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .seg input{position:absolute;opacity:0;pointer-events:none}
+  .seg label{flex:1;margin:0;padding:10px 6px;text-align:center;font-size:14px;color:var(--ink);cursor:pointer;background:var(--bg)}
+  .seg input:checked + label{background:var(--accent);color:var(--accent-ink)}
+  .seg input:disabled + label{opacity:.45;cursor:default}
+  .aibox{margin-top:10px;padding:12px;border:1px dashed var(--line);border-radius:10px}
+  .aibox label:first-child{margin-top:0}
+  #camModal{position:fixed;inset:0;background:#000;display:none;flex-direction:column;z-index:50}
+  #camModal.show{display:flex}
+  #camModal video{flex:1;width:100%;object-fit:cover;min-height:0}
+  #camFrame{position:absolute;left:8%;right:8%;top:30%;height:26%;border:3px solid rgba(255,255,255,.9);border-radius:14px;box-shadow:0 0 0 9999px rgba(0,0,0,.35);pointer-events:none}
+  #camMsg{position:absolute;top:calc(env(safe-area-inset-top) + 16px);left:16px;right:16px;color:#fff;text-align:center;font-weight:600;text-shadow:0 1px 3px #000}
+  #camBar{display:flex;gap:10px;padding:14px 16px calc(env(safe-area-inset-bottom) + 14px);background:#000}
+  #camBar .btn{flex:1}
+  .chk{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px;color:var(--muted)}
+  .hint{font-size:13px;color:var(--muted);margin:8px 0 0}
+  .list{display:flex;flex-direction:column;gap:8px}
+  .item{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;gap:10px;align-items:flex-start}
+  .item .info{flex:1;min-width:0}
+  .item .name{font-weight:700;overflow-wrap:anywhere}
+  .item .meta{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+  .badge{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;margin-top:4px;border:1px solid currentColor}
+  .badge.ok{color:var(--ok)} .badge.warn{color:var(--warn)} .badge.bad{color:var(--bad)}
+  .item .acts{display:flex;flex-direction:column;gap:6px}
+  .item .acts .btn{padding:6px 10px;font-size:13px}
+  .empty{color:var(--muted);text-align:center;padding:16px 0}
+  #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);
+    padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+  #toast.show{opacity:1}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:20px}
+  .modal.show{display:flex}
+  .modal .box{background:var(--card);border-radius:14px;padding:18px;max-width:360px;width:100%}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s 1s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes s{to{transform:rotate(360deg)}}
+</style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div>
-      <h1>Barcode <span>To</span> Excel</h1>
-      <p class="sub">Scan with your camera, a photo, or a USB scanner. Every code lands in the sheet, and one tap exports it as an Excel file.</p>
-    </div>
-    <div class="stats">
-      <div class="stat"><b id="stat-items">0</b><small>Items</small></div>
-      <div class="stat"><b id="stat-qty">0</b><small>Total qty</small></div>
-    </div>
-  </header>
+<header>
+  <h1>Barcode → Excel</h1>
+  <p>Photograph an item, check the details, save it, then export all items to Excel.</p>
+</header>
+<main>
 
-  <main>
-    <section class="panel" aria-labelledby="scan-h">
-      <h2 id="scan-h">Scanner</h2>
-      <div class="viewfinder" id="viewfinder">
-        <video id="video" muted playsinline></video>
-        <div class="corners" aria-hidden="true"></div>
-        <div class="laser" aria-hidden="true"></div>
-        <div class="idle" id="idle">Camera is off.<br>Press Start camera and point it at a barcode.</div>
-      </div>
+  <section class="card">
+    <h2>1. Scan item</h2>
+    <div class="row" style="flex-wrap:nowrap">
+      <button class="btn primary big" type="button" id="cam1Btn" style="flex:3">📷 1. Scan barcode</button>
+      <label class="btn big" for="cam1" style="flex:1;text-align:center;font-size:15px" title="Use a photo instead">🖼 Photo</label>
+    </div>
+    <input id="cam1" type="file" accept="image/*" capture="environment" hidden>
+    <div id="wrap1" class="photoWrap">
+      <img id="photo1" class="thumb" alt="Barcode photo">
+      <div id="status1" class="status"></div>
+    </div>
+    <div class="row" style="flex-wrap:nowrap;margin-top:12px">
+      <button class="btn big" type="button" id="cam2Btn" style="flex:3">📅 2. Capture dates</button>
+      <label class="btn big" for="cam2" style="flex:1;text-align:center;font-size:15px" title="Use a photo instead">🖼 Photo</label>
+    </div>
+    <input id="cam2" type="file" accept="image/*" capture="environment" hidden>
+    <div id="wrap2" class="photoWrap">
+      <img id="photo2" class="thumb" alt="Dates photo">
+      <div id="status2" class="status"></div>
+    </div>
+    <label style="margin-top:14px">Read text using</label>
+    <div class="seg">
+      <input type="radio" name="engine" id="engLocal" value="local" checked><label for="engLocal">📱 Offline</label>
+      <input type="radio" name="engine" id="engOpenai" value="openai"><label for="engOpenai">ChatGPT</label>
+      <input type="radio" name="engine" id="engGemini" value="gemini"><label for="engGemini">Gemini</label>
+    </div>
+    <div id="aiBox" class="aibox" style="display:none">
+      <label for="aiKey" id="aiKeyLbl">API key</label>
+      <input id="aiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your API key">
+      <label for="aiModel">Model</label>
+      <input id="aiModel" type="text" autocomplete="off" spellcheck="false">
+      <p class="hint" id="aiHelp"></p>
+      <p class="hint">Your key is saved only on this phone and is sent only to the AI company you chose. AI use is billed to your own account by that company.</p>
+    </div>
+    <div class="hint" id="ocrState"></div>
+    <p class="hint">1. Scan: hold the barcode inside the box until the phone vibrates.<br>2. Dates: get close so the dates fill most of the photo, hold steady, and avoid glare on shiny packs.</p>
+  </section>
+
+  <section class="card">
+    <h2>2. Item details</h2>
+    <form id="form" autocomplete="off">
+      <label for="f_name">Item name</label>
+      <input id="f_name" type="text" placeholder="e.g. Almarai Milk 1L">
+      <label for="f_code">Barcode number</label>
+      <input id="f_code" type="text" inputmode="numeric" placeholder="Scan, or type / use a scanner gun">
       <div class="row">
-        <button class="primary" id="cam-toggle" type="button">Start camera</button>
-        <label class="btn" for="photo">Scan a photo<input id="photo" type="file" accept="image/*" capture="environment"></label>
-        <select id="cam-select" hidden aria-label="Camera"></select>
-      </div>
-      <p class="status" id="status" role="status"></p>
-      <form class="manual" id="manual" autocomplete="off">
-        <input type="text" id="manual-code" placeholder="Type or scan a code" aria-label="Barcode" inputmode="text">
-        <button type="submit">Add</button>
-      </form>
-      <label class="check"><input type="checkbox" id="merge" checked> Count repeat scans as quantity</label>
-    </section>
-
-    <section class="panel" aria-labelledby="sheet-h">
-      <div class="sheet-head">
-        <h2 id="sheet-h">Sheet</h2>
-        <div class="row">
-          <button class="primary" id="export-xlsx" type="button">Export to Excel</button>
-          <button id="export-csv" type="button">CSV</button>
-          <button class="danger" id="clear" type="button">Clear all</button>
+        <div>
+          <label for="f_prod">Production (factory) date</label>
+          <input id="f_prod" type="date">
+        </div>
+        <div>
+          <label for="f_exp">Expiration date</label>
+          <input id="f_exp" type="date">
         </div>
       </div>
-      <div class="banner" id="example-banner" hidden>
-        <span>These are example rows. They disappear when you scan your first code.</span>
-        <button id="clear-examples" type="button">Remove examples</button>
+      <div class="row">
+        <div>
+          <label for="f_batch">Batch / lot (optional)</label>
+          <input id="f_batch" type="text">
+        </div>
+        <div>
+          <label for="f_qty">Quantity</label>
+          <input id="f_qty" type="number" min="0" step="1" value="1">
+        </div>
       </div>
-      <div class="table-scroll">
-        <table>
-          <thead><tr><th>No</th><th>Barcode</th><th>Format</th><th>Qty</th><th>Note</th><th>Scanned at</th><th><span hidden>Remove</span></th></tr></thead>
-          <tbody id="rows"></tbody>
-        </table>
+      <div class="row" style="margin-top:14px">
+        <button class="btn primary" type="submit" id="saveBtn">Save item</button>
+        <button class="btn" type="button" id="clearBtn">Clear form</button>
       </div>
-    </section>
-  </main>
-  <footer>Your list is saved in this browser only. Export it to keep a copy.</footer>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="row" style="align-items:center;margin-bottom:10px">
+      <h2 style="margin:0;flex:1 1 auto">3. Saved items (<span id="count">0</span>)</h2>
+    </div>
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn primary" id="xlsxBtn">⬇ Export Excel</button>
+      <button class="btn" id="copyBtn">Copy table</button>
+      <button class="btn" id="wipeBtn">Delete all</button>
+    </div>
+    <div class="list" id="list"></div>
+    <p class="hint">Items are kept in this browser on this device. Export to Excel before clearing your browser data.</p>
+  </section>
+</main>
+
+<div id="camModal">
+  <video id="camVideo" playsinline muted></video>
+  <div id="camFrame"></div>
+  <div id="camMsg"></div>
+  <div id="camBar">
+    <button class="btn" type="button" id="camClose">Close</button>
+    <button class="btn" type="button" id="camTorch" style="display:none">🔦 Light</button>
+    <button class="btn primary" type="button" id="camShot">Capture</button>
+  </div>
+</div>
+<div id="toast"></div>
+<div class="modal" id="confirm">
+  <div class="box">
+    <p id="confirmText" style="margin:0 0 16px"></p>
+    <div class="row">
+      <button class="btn" id="confirmNo">Cancel</button>
+      <button class="btn primary" id="confirmYes" style="background:var(--bad);border-color:var(--bad);color:#fff">Delete</button>
+    </div>
+  </div>
 </div>
 
 <script>
-(function () {
-  var STORE = 'barcode-to-excel:v1';
-  var items = [];           // newest first: {id, seq, code, format, qty, note, time, example}
-  var seq = 0;
-  var freshId = null;
-  var $ = function (id) { return document.getElementById(id); };
+(() => {
+  const $ = id => document.getElementById(id);
+  const F = { name:$('f_name'), code:$('f_code'), prod:$('f_prod'), exp:$('f_exp'), batch:$('f_batch'), qty:$('f_qty') };
+  let items = [], names = {}, editingId = null;
 
-  function examples() {
-    var now = Date.now();
-    return [
-      { code: 'SKU-1042-B', format: 'CODE_128', qty: 1, note: '', t: now - 60000 },
-      { code: '012345678905', format: 'UPC_A', qty: 3, note: 'Shelf B2', t: now - 240000 },
-      { code: '6291041500213', format: 'EAN_13', qty: 2, note: 'Shelf A1', t: now - 420000 }
-    ].map(function (r, i) {
-      return { id: 'ex' + i, seq: 3 - i, code: r.code, format: r.format, qty: r.qty, note: r.note, time: r.t, example: true };
+  // ---------- storage ----------
+  const store = {
+    get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+    set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  };
+  items = store.get('b2x_items', []);
+  names = store.get('b2x_names', {});
+  const persist = () => { store.set('b2x_items', items); store.set('b2x_names', names); };
+
+  // ---------- ui helpers ----------
+  let tt;
+  function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2600); }
+  function ask(text){
+    return new Promise(res=>{
+      $('confirmText').textContent=text; $('confirm').classList.add('show');
+      const done=v=>{ $('confirm').classList.remove('show'); $('confirmYes').onclick=$('confirmNo').onclick=null; res(v); };
+      $('confirmYes').onclick=()=>done(true); $('confirmNo').onclick=()=>done(false);
     });
   }
+  const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-  function load() {
-    try {
-      var s = JSON.parse(localStorage.getItem(STORE));
-      if (s && Array.isArray(s.items)) {
-        items = s.items; seq = s.seq || items.length;
-        $('merge').checked = s.merge !== false;
+  // ---------- GS1 parsing ----------
+  // Fixed-length AIs (data length), others are variable and end at GS (\x1d)
+  const FIXED = {'00':18,'01':14,'02':14,'11':6,'12':6,'13':6,'15':6,'16':6,'17':6,'20':2};
+  function gs1Date(s){
+    if(!/^\d{6}$/.test(s)) return '';
+    let y=2000+ +s.slice(0,2), m=+s.slice(2,4), d=+s.slice(4,6);
+    if(m<1||m>12) return '';
+    if(d===0) d=new Date(y,m,0).getDate(); // DD=00 means end of month
+    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+  function parseGS1(raw){
+    let s = String(raw).replace(/^\](C1|d2|Q3|e0)/,'');
+    const out = {};
+    // Human-readable form: (01)0123...(17)250101
+    if(/^\(\d{2,4}\)/.test(s)){
+      const re=/\((\d{2,4})\)([^(]*)/g; let m;
+      while((m=re.exec(s))) out[m[1]]=m[2].trim();
+    } else {
+      s = s.replace(/^\x1d/,'');
+      if(!/^(00|01|02)\d/.test(s)) return null;
+      let i=0, guard=0;
+      while(i<s.length && guard++<30){
+        if(s[i]==='\x1d'){ i++; continue; }
+        const ai2=s.slice(i,i+2);
+        let ai, len;
+        if(FIXED[ai2]){ ai=ai2; len=FIXED[ai2]; out[ai]=s.slice(i+2,i+2+len); i+=2+len; continue; }
+        if(/^(10|21|22|30|37|240|241|90|91|92|93|94|95|96|97|98|99)/.test(s.slice(i))){
+          ai = /^(240|241)/.test(s.slice(i)) ? s.slice(i,i+3) : ai2;
+        } else if(/^(31|32|33|34|35|36)\d{2}/.test(s.slice(i))){
+          ai=s.slice(i,i+4); out[ai]=s.slice(i+4,i+10); i+=10; continue;
+        } else { break; }
+        const start=i+ai.length; let end=s.indexOf('\x1d',start); if(end<0) end=s.length;
+        out[ai]=s.slice(start,end); i=end;
+      }
+    }
+    if(!out['01'] && !out['02']) return null;
+    let gtin = out['01']||out['02'];
+    if(gtin.length===14 && gtin[0]==='0') gtin = gtin.slice(1); // GTIN-14 with leading 0 → EAN-13
+    return {
+      code: gtin,
+      prod: gs1Date(out['11']||''),
+      exp: gs1Date(out['17']||'') || gs1Date(out['15']||'') || gs1Date(out['16']||''),
+      batch: out['10']||''
+    };
+  }
+
+  // ---------- barcode decoding ----------
+  function loadImage(file){
+    return new Promise((res,rej)=>{ const url=URL.createObjectURL(file); const img=new Image();
+      img.onload=()=>res({img,url}); img.onerror=rej; img.src=url; });
+  }
+  function toCanvas(img, maxSide, rotate=0){
+    const sc=Math.min(1, maxSide/Math.max(img.naturalWidth,img.naturalHeight));
+    const w=Math.round(img.naturalWidth*sc), h=Math.round(img.naturalHeight*sc);
+    const c=document.createElement('canvas');
+    if(rotate%180){ c.width=h; c.height=w; } else { c.width=w; c.height=h; }
+    const x=c.getContext('2d', {willReadFrequently:true});
+    x.translate(c.width/2,c.height/2); x.rotate(rotate*Math.PI/180); x.drawImage(img,-w/2,-h/2,w,h);
+    return c;
+  }
+  async function decode(img){
+    // 1) Native detector (Chrome on Android)
+    if('BarcodeDetector' in window){
+      try{
+        const det=new BarcodeDetector();
+        for(const side of [1600, 2600]){
+          const r=await det.detect(toCanvas(img,side));
+          if(r && r.length) return r[0].rawValue;
+        }
+      }catch(e){}
+    }
+    // 2) ZXing fallback
+    if(window.ZXing){
+      const Z=window.ZXing, hints=new Map();
+      hints.set(Z.DecodeHintType.TRY_HARDER,true);
+      const reader=new Z.MultiFormatReader(); reader.setHints(hints);
+      for(const [side,rot] of [[1400,0],[900,0],[2200,0],[1400,90]]){
+        try{
+          const c=toCanvas(img,side,rot);
+          const bmp=new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(c)));
+          const r=reader.decode(bmp); if(r) return r.getText();
+        }catch(e){}
+      }
+    }
+    return null;
+  }
+  function smallJpeg(img){
+    return new Promise(res=>toCanvas(img,1400).toBlob(b=>res(b),'image/jpeg',0.85));
+  }
+
+  // ---------- Offline date finder ----------
+  // ---- Offline date finder (shared with page) ----
+  const MON={JAN:1,FEB:2,MAR:3,APR:4,MAY:5,JUN:6,JUL:7,AUG:8,SEP:9,SEPT:9,OCT:10,NOV:11,DEC:12};
+  const PROD_RE=/(PR[O0]D\w*|PRD|\bP\s?[\.\/:]\s?[D0O]\b|\bPD\b|[MA]F[G6]|MFD|MANUF\w*|PKD|PACK(ED|ING)?|\bMADE\b|\bMF\b|\bDOM\b|\bP\b|\bL?D\s?[\.\/:]?\s?PROD)/g;
+  const EXP_RE=/([E3F][XKS%][PR]\w*|EX\b|E\s?[\.\/:]\s?[D0O]\b|\bED\b|\bBB\w?\b|BEST\s*(BEFORE|BY)|USE\s*(BY|BEFORE)|\bE\b|EXPIRY|VALID\w*|\bUB\b)/g;
+  function fixDigits(s){ return s.replace(/[OQD@#]/g,'0').replace(/[IL|!]/g,'1').replace(/S/g,'5').replace(/B/g,'8').replace(/Z/g,'2').replace(/G/g,'6'); }
+  // OCR often turns 0 into 6/8/9 in dotted print: repair impossible values
+  function fixYear(s){ s=fixDigits(s); if(/^2[6895]\d{2}$/.test(s)) s='20'+s.slice(2); return +s; }
+  function fixPart(s,max){ s=fixDigits(s); let v=+s; if(v>max && /^[6895]\d$/.test(s)) v=+s[1]; return v; }
+  function mkDate(y,m,d){
+    if(y<100) y+=2000;
+    if(y<2015||y>2045||m<1||m>12) return null;
+    const last=new Date(y,m,0).getDate();
+    if(d!=null && (d<1||d>last)) return null;
+    return {y,m,d};
+  }
+  function iso(o){ return `${o.y}-${String(o.m).padStart(2,'0')}-${String(o.d).padStart(2,'0')}`; }
+  function findDates(text){
+    const T=' '+text.toUpperCase().replace(/[‐–—]/g,'-')+' ';
+    const out=[]; const used=[];
+    const take=(re,fn)=>{ re.lastIndex=0; let m; while((m=re.exec(T))){ const a=m.index,b=a+m[0].length;
+        if(used.some(([x,y])=>a<y&&b>x)) continue; const r=fn(m); if(r){ out.push({...r,idx:m.index}); used.push([a,b]); } else { re.lastIndex=a+1; } } };
+    const N='[0-9OQDILSBZG|@#]';
+    // 12 MAR 2026 / 12-MAR-26 / 12MAR26
+    take(new RegExp(`(?<![0-9A-Z])(${N}{1,2})\\s?[\\/\\.\\-]?\\s?(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEPT?|OCT|NOV|DEC)[A-Z]*\\s?[\\/\\.\\-,]?\\s?(${N}{2,4})(?![0-9])`,'g'),
+      m=>{ const d=mkDate(fixYear(m[3]),MON[m[2]],fixPart(m[1],31)); return d&&{...d,kind:'full'}; });
+    // MAR 2026 / MAR-26
+    take(new RegExp(`(?<![A-Z])(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEPT?|OCT|NOV|DEC)[A-Z]*\\s?[\\/\\.\\-,]?\\s?(${N}{2,4})(?![0-9])`,'g'),
+      m=>{ const d=mkDate(fixYear(m[2]),MON[m[1]],null); return d&&{...d,kind:'month'}; });
+    // 2026/03/12
+    take(new RegExp(`(?<![0-9])(2${N}{3})\\s?[\\/\\.\\-]\\s?(${N}{1,2})\\s?[\\/\\.\\-]\\s?(${N}{1,2})(?![0-9])`,'g'),
+      m=>{ const d=mkDate(fixYear(m[1]),fixPart(m[2],12),fixPart(m[3],31)); return d&&{...d,kind:'full'}; });
+    // 12/03/2026, 12.03.26  (day first; switch to month-first only if impossible)
+    take(new RegExp(`(?<![0-9A-Z])(${N}{1,2})\\s?[\\/\\.\\-]\\s?(${N}{1,2})\\s?[\\/\\.\\-]\\s?(${N}{4}|${N}{2})(?![0-9])`,'g'),
+      m=>{ const a=fixPart(m[1],31), b=fixPart(m[2],12), y=fixYear(m[3]);
+        const d=mkDate(y,b,a)||mkDate(y,a,b); return d&&{...d,kind:'full'}; });
+    // 03/2026, 03.26 (month-year)
+    take(new RegExp(`(?<![0-9A-Z\\/\\.\\-])(${N}{1,2})\\s?[\\/\\.\\-]\\s?(20${N}{2}|${N}{2})(?![0-9\\/\\.\\-])`,'g'),
+      m=>{ const d=mkDate(fixYear(m[2]),fixPart(m[1],12),null); return d&&{...d,kind:'month'}; });
+    // 2027.03 / 2027-03 (year-month)
+    take(new RegExp(`(?<![0-9])(2${N}{3})\\s?[\\/\\.\\-]\\s?(${N}{1,2})(?![0-9\\/\\.\\-])`,'g'),
+      m=>{ const d=mkDate(fixYear(m[1]),fixPart(m[2],12),null); return d&&{...d,kind:'month'}; });
+    // 12 2027 / 12 03 2027 with spaces only
+    take(/(?<![0-9A-Z])([0-9O]{1,2}) ([0-9O]{1,2}) (2[0-9O]{3})(?![0-9])/g,
+      m=>{ const a=fixPart(m[1],31), b=fixPart(m[2],12), y=fixYear(m[3]); const d=mkDate(y,b,a)||mkDate(y,a,b); return d&&{...d,kind:'full'}; });
+    take(/(?<![0-9A-Z])([0-9O]{1,2}) (2[0-9O]{3})(?![0-9])/g,
+      m=>{ const d=mkDate(fixYear(m[2]),fixPart(m[1],12),null); return d&&{...d,kind:'month'}; });
+    // compact 12032026 / 20260312 / 120326 — only right after a label
+    take(/(?:EXP\w*|PROD\w*|MFG|MFD|PD|ED|BB)\s*[:\.]?\s*([0-9]{6}|[0-9]{8})(?![0-9])/g, m=>{
+      const s=m[1]; let d=null;
+      if(s.length===8) d = s.startsWith('20') ? mkDate(+s.slice(0,4),+s.slice(4,6),+s.slice(6,8)) : mkDate(+s.slice(4,8),+s.slice(2,4),+s.slice(0,2));
+      else d = mkDate(+s.slice(4,6),+s.slice(2,4),+s.slice(0,2)) || mkDate(+s.slice(0,2),+s.slice(2,4),+s.slice(4,6));
+      if(d){ m.index += m[0].indexOf(s); }
+      return d&&{...d,kind:'full'};
+    });
+    // label nearest before each date (within 30 chars)
+    for(const o of out){
+      const win=T.slice(Math.max(0,o.idx-30),o.idx);
+      let best=null;
+      for(const [lab,re] of [['prod',PROD_RE],['exp',EXP_RE]]){ re.lastIndex=0; let m; while((m=re.exec(win))){ if(!best||m.index>=best.pos) best={lab,pos:m.index}; } }
+      o.label=best?best.lab:null;
+    }
+    return out.sort((a,b)=>a.idx-b.idx);
+  }
+  function pickDates(text, today=new Date()){
+    const ds=findDates(text);
+    const key=o=>o.y*10000+o.m*100+(o.d||1);
+    const asProd=o=>iso({...o,d:o.d||1}), asExp=o=>iso({...o,d:o.d||new Date(o.y,o.m,0).getDate()});
+    let prod=ds.find(o=>o.label==='prod'), exp=ds.find(o=>o.label==='exp');
+    const free=ds.filter(o=>!o.label);
+    if(!prod&&!exp&&free.length>=2){ const s=[...free].sort((a,b)=>key(a)-key(b)); prod=s[0]; exp=s[s.length-1]; if(key(prod)===key(exp)) prod=null; }
+    else if(!exp&&prod){ exp=free.filter(o=>key(o)>key(prod)).sort((a,b)=>key(b)-key(a))[0]; }
+    else if(!prod&&exp){ prod=free.filter(o=>key(o)<key(exp)).sort((a,b)=>key(a)-key(b))[0]; }
+    else if(!prod&&!exp&&free.length===1){ const t=today.getFullYear()*10000+(today.getMonth()+1)*100+today.getDate(); if(key(free[0])>=t) exp=free[0]; else prod=free[0]; }
+    return { prod: prod?asProd(prod):'', exp: exp?asExp(exp):'' };
+  }
+  // EAN/UPC digits from OCR text (checksum-validated)
+  function findBarcodeDigits(text){
+    const runs=(text.replace(/[ \t]/g,'').match(/[0-9]{8,14}/g)||[]);
+    const ok=s=>{ const d=s.split('').map(Number), c=d.pop(); let sum=0; d.reverse().forEach((v,i)=>sum+=v*(i%2===0?3:1)); return (10-sum%10)%10===c; };
+    return runs.filter(s=>[8,12,13,14].includes(s.length)&&ok(s)).sort((a,b)=>b.length-a.length)[0]||'';
+  }
+
+  // ---------- Offline text reader (Tesseract, runs on the phone) ----------
+  let ocrPromise=null;
+  const ocrState = t => { $('ocrState').innerHTML=t; };
+  function initOCR(){
+    if(ocrPromise) return ocrPromise;
+    ocrPromise=(async()=>{
+      if(!window.Tesseract) throw new Error('reader script did not load');
+      ocrState('<span class="spin"></span>Preparing offline reader (first time only, about 3 MB)…');
+      const w=await Tesseract.createWorker('eng', 1, {
+        workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+        corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5',
+        langPath:new URL('tess', document.baseURI).href, gzip:false
+      });
+      await w.setParameters({ preserve_interword_spaces:'1' });
+      ocrState('✅ Offline reader ready — dates are read on your phone.');
+      return w;
+    })();
+    ocrPromise.catch(err=>{
+      console.warn(err); ocrPromise=null;
+      ocrState('⚠️ Offline reader could not start — check your internet for the first load, or type the dates by hand.');
+    });
+    return ocrPromise;
+  }
+  // --- image clean-up variants (help with dotted / faint print) ---
+  function grayOf(img, maxSide){
+    const c=toCanvas(img,maxSide), x=c.getContext('2d',{willReadFrequently:true});
+    const d=x.getImageData(0,0,c.width,c.height), p=d.data, n=c.width*c.height, g=new Uint8ClampedArray(n);
+    const hist=new Uint32Array(256);
+    for(let i=0,j=0;j<n;i+=4,j++){ const v=(p[i]*.299+p[i+1]*.587+p[i+2]*.114)|0; g[j]=v; hist[v]++; }
+    // stretch contrast between 1% and 99% levels
+    let lo=0,hi=255,acc=0; for(;lo<255;lo++){ acc+=hist[lo]; if(acc>n*.01) break; }
+    acc=0; for(;hi>0;hi--){ acc+=hist[hi]; if(acc>n*.01) break; }
+    const k=255/Math.max(1,hi-lo); for(let j=0;j<n;j++) g[j]=(g[j]-lo)*k;
+    return {w:c.width,h:c.height,g};
+  }
+  function minFilter({w,h,g}, r){ // grows dark dots so they join into strokes
+    const t=new Uint8ClampedArray(g.length), o=new Uint8ClampedArray(g.length);
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ let m=255; for(let k=-r;k<=r;k++){ const xx=Math.min(w-1,Math.max(0,x+k)); const v=g[y*w+xx]; if(v<m)m=v; } t[y*w+x]=m; }
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){ let m=255; for(let k=-r;k<=r;k++){ const yy=Math.min(h-1,Math.max(0,y+k)); const v=t[yy*w+x]; if(v<m)m=v; } o[y*w+x]=m; }
+    return {w,h,g:o};
+  }
+  function boxBlur({w,h,g}, r){
+    let src=g;
+    for(let pass=0;pass<2;pass++){
+      const t=new Uint8ClampedArray(src.length), o=new Uint8ClampedArray(src.length), d=2*r+1;
+      for(let y=0;y<h;y++){ let s=0; for(let k=-r;k<=r;k++) s+=src[y*w+Math.min(w-1,Math.max(0,k))];
+        for(let x=0;x<w;x++){ t[y*w+x]=s/d; s+=src[y*w+Math.min(w-1,x+r+1)]-src[y*w+Math.max(0,x-r)]; } }
+      for(let x=0;x<w;x++){ let s=0; for(let k=-r;k<=r;k++) s+=t[Math.min(h-1,Math.max(0,k))*w+x];
+        for(let y=0;y<h;y++){ o[y*w+x]=s/d; s+=t[Math.min(h-1,y+r+1)*w+x]-t[Math.max(0,y-r)*w+x]; } }
+      src=o;
+    }
+    return {w,h,g:src};
+  }
+  function otsu({w,h,g}){
+    const hist=new Uint32Array(256); for(const v of g) hist[v]++;
+    const n=g.length; let sum=0; for(let i=0;i<256;i++) sum+=i*hist[i];
+    let sB=0,wB=0,best=0,th=128;
+    for(let t=0;t<256;t++){ wB+=hist[t]; if(!wB) continue; const wF=n-wB; if(!wF) break;
+      sB+=t*hist[t]; const mB=sB/wB, mF=(sum-sB)/wF, v=wB*wF*(mB-mF)*(mB-mF); if(v>best){best=v;th=t;} }
+    const o=new Uint8ClampedArray(n); for(let j=0;j<n;j++) o[j]=g[j]>th?255:0;
+    return {w,h,g:o};
+  }
+  function toImg({w,h,g}){
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    const x=c.getContext('2d'), d=x.createImageData(w,h);
+    for(let j=0,i=0;j<g.length;j++,i+=4){ d.data[i]=d.data[i+1]=d.data[i+2]=g[j]; d.data[i+3]=255; }
+    x.putImageData(d,0,0); return c;
+  }
+  async function ocrRun(canvas, psm){
+    const w=await initOCR();
+    await w.setParameters({ tessedit_pageseg_mode:String(psm) });
+    const r=await w.recognize(canvas);
+    return (r && r.data && r.data.text) || '';
+  }
+  async function ocrText(img, psm){ return ocrRun(toImg(grayOf(img,2000)), psm); }
+  let lastOcrText='';
+  async function ocrDates(img, onPass){
+    const base=grayOf(img,1600);
+    const passes=[
+      ['plain',   ()=>base, 6],
+      ['dots',    ()=>minFilter(base,1), 6],
+      ['smooth',  ()=>otsu(boxBlur(base,2)), 6],
+      ['plain11', ()=>base, 11],
+      ['dots2',   ()=>minFilter(base,2), 6],
+      ['smooth2', ()=>otsu(boxBlur(base,3)), 6],
+    ];
+    const votes={prod:{},exp:{}}, texts=[];
+    const top=f=>{ let b='',n=0; for(const [k,v] of Object.entries(votes[f])) if(v>n){b=k;n=v;} return [b,n]; };
+    for(let i=0;i<passes.length;i++){
+      const [name,mk,psm]=passes[i];
+      onPass && onPass(i+1, passes.length);
+      let t=''; try{ t=await ocrRun(toImg(mk()), psm); }catch(e){ if(i===0) throw e; }
+      texts.push(t.trim());
+      const r=pickDates(t);
+      if(r.prod) votes.prod[r.prod]=(votes.prod[r.prod]||0)+1;
+      if(r.exp)  votes.exp[r.exp]=(votes.exp[r.exp]||0)+1;
+      const [p,pn]=top('prod'), [e,en]=top('exp');
+      if(e && en>=2 && (pn>=2 || (i>=3 && !p))) break;   // two passes agree
+    }
+    lastOcrText=texts.filter(Boolean).join('\n—\n');
+    return { prod: top('prod')[0], exp: top('exp')[0] };
+  }
+  const engine = () => (document.querySelector('input[name=engine]:checked')||{}).value;
+
+  // ---------- AI reading ----------
+  const PROMPT_CODE = `You are looking at a photo of a product's barcode area.
+Reply with ONLY a JSON object: {"name": string, "barcode": string}
+- name: the product name if printed in the photo (brand + product + size). Prefer English if both Arabic and English exist. "" if not visible.
+- barcode: the digits printed under the barcode, digits only. "" if not readable.
+Never guess; use "" for anything unclear.`;
+  const PROMPT_DATES = `You are looking at a close-up photo of the dates printed on a product package.
+Reply with ONLY a JSON object: {"production_date": string, "expiry_date": string, "batch": string}
+- production_date: manufacturing / production / factory date (labels like PROD, P.D, MFG, MFD, PKD, تاريخ الإنتاج, الإنتاج). Format YYYY-MM-DD.
+- expiry_date: expiration / best before / use by date (labels like EXP, E.D, BB, Best Before, Use By, تاريخ الانتهاء, الانتهاء, صالح حتى). Format YYYY-MM-DD.
+- Dates here are usually day/month/year (e.g. 05/03/26 = 2026-03-05). If only month and year are shown, use the last day of that month for expiry and the first day for production.
+- If two dates have no labels, the earlier one is production and the later one is expiry.
+- batch: lot / batch number if printed, else "".
+Never guess; use "" for anything unclear.`;
+  const AI = {
+    openai:{ label:'OpenAI API key', model:'gpt-4o-mini', help:'Get a key at platform.openai.com → API keys. (A ChatGPT Plus subscription does not include API use; the API is billed separately.)' },
+    gemini:{ label:'Google Gemini API key', model:'gemini-flash-latest', help:'Get a free key at aistudio.google.com → Get API key.' }
+  };
+  const store2 = { get:k=>{ try{return localStorage.getItem(k)||'';}catch(e){return '';} }, set:(k,v)=>{ try{localStorage.setItem(k,v);}catch(e){} } };
+  const aiKey = p => store2.get('b2x_key_'+p);
+  const aiModel = p => store2.get('b2x_model_'+p) || AI[p].model;
+  function blobToB64(blob){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]); r.onerror=rej; r.readAsDataURL(blob); }); }
+  function parseJSON(t){ const m=String(t||'').match(/\{[\s\S]*\}/); if(!m) throw {code:'bad_answer'}; return JSON.parse(m[0]); }
+  async function askAI(prompt, blob){
+    const p=engine(), key=aiKey(p), model=aiModel(p), b64=await blobToB64(blob);
+    if(!key) throw {code:'no_key'};
+    let r, j;
+    if(p==='openai'){
+      r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+        body:JSON.stringify({model, response_format:{type:'json_object'},
+          messages:[{role:'user',content:[{type:'text',text:prompt},{type:'image_url',image_url:{url:'data:image/jpeg;base64,'+b64}}]}]})});
+      j=await r.json().catch(()=>({}));
+      if(!r.ok) throw {code:r.status===401?'bad_key':r.status===429?'rate_limited':'api', message:(j.error&&j.error.message)||r.status};
+      return parseJSON(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content);
+    } else {
+      r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',
+        headers:{'Content-Type':'application/json','x-goog-api-key':key},
+        body:JSON.stringify({contents:[{parts:[{text:prompt},{inline_data:{mime_type:'image/jpeg',data:b64}}]}],
+          generationConfig:{responseMimeType:'application/json'}})});
+      j=await r.json().catch(()=>({}));
+      if(!r.ok) throw {code:(r.status===400||r.status===403)&&/key/i.test(JSON.stringify(j))?'bad_key':r.status===429?'rate_limited':'api', message:(j.error&&j.error.message)||r.status};
+      const parts=j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts||[];
+      return parseJSON(parts.map(x=>x.text||'').join(''));
+    }
+  }
+  function aiError(err){
+    const c=err&&err.code;
+    const msg={no_key:'Add your API key first (under "Read text using")',bad_key:'The API key was rejected — please check it',
+      rate_limited:'AI limit reached — wait a moment, or switch to Offline'}[c] || ('AI error: '+((err&&err.message)||'no answer')+' — fill it by hand or switch to Offline');
+    toast(msg);
+  }
+  const validDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s||'') ? s : '';
+  const aiOn = () => engine()!=='local' && !!aiKey(engine());
+
+  async function openPhoto(e, n){
+    const file=e.target.files && e.target.files[0]; e.target.value='';
+    if(!file) return null;
+    try{
+      const r=await loadImage(file);
+      $('photo'+n).src=r.url; $('wrap'+n).style.display='flex';
+      return r.img;
+    }catch(err){ toast('Could not open that photo'); return null; }
+  }
+  function missingNote(){
+    const m=[]; if(!F.name.value) m.push('name'); if(!F.code.value) m.push('barcode');
+    if(!F.prod.value) m.push('production date'); if(!F.exp.value) m.push('expiry date');
+    return m.length?`<br>✏️ Still needed: ${esc(m.join(', '))}`:'<br>All set — check the details, then tap <b>Save item</b>.';
+  }
+  function refreshNotes(){
+    if($('wrap1').style.display==='flex' && $('status1').dataset.base) $('status1').innerHTML=$('status1').dataset.base;
+    if($('wrap2').style.display==='flex' && $('status2').dataset.base) $('status2').innerHTML=$('status2').dataset.base+missingNote();
+    else if($('status1').dataset.base) $('status1').innerHTML=$('status1').dataset.base+missingNote();
+  }
+  function setS(n, html, final){ const el=$('status'+n); if(final){ el.dataset.base=html; refreshNotes(); } else el.innerHTML=html; }
+
+  // ---------- Photo 1: barcode ----------
+  $('cam1').addEventListener('change', async e=>{
+    const img=await openPhoto(e,1); if(!img) return;
+    setS(1,'<span class="spin"></span>Reading barcode…');
+    handleBarcode(await decode(img), img);
+  });
+  async function handleBarcode(raw, img){
+    if(img){ $('photo1').src=img.src; $('wrap1').style.display='flex'; }
+    const found=[];
+    if(raw){
+      const g=parseGS1(raw);
+      F.code.value = g ? g.code : raw.trim(); found.push('barcode '+F.code.value);
+      if(g){
+        if(g.prod){ F.prod.value=g.prod; found.push('production date'); }
+        if(g.exp){ F.exp.value=g.exp; found.push('expiry date'); }
+        if(g.batch){ F.batch.value=g.batch; found.push('batch'); }
+      }
+    }
+    if(!F.code.value && !aiOn() && img){
+      setS(1,'<span class="spin"></span>Reading the numbers under the barcode…');
+      try{ const dg=findBarcodeDigits(await ocrText(img,11)); if(dg){ F.code.value=dg; found.push('barcode '+dg+' (from text)'); } }catch(err){}
+    }
+    if(names[F.code.value]){ F.name.value=names[F.code.value]; found.push('name (remembered)'); }
+    if(aiOn() && img && (!F.name.value || !F.code.value)){
+      setS(1,(found.length?`✅ ${esc(found.join(', '))}<br>`:'')+'<span class="spin"></span>AI is reading the name…');
+      try{
+        const v=await askAI(PROMPT_CODE, await smallJpeg(img));
+        if(!F.code.value && v.barcode && /\d{6,}/.test(v.barcode)){ F.code.value=v.barcode.replace(/\D/g,''); found.push('barcode '+F.code.value+' (from text)'); }
+        if(!F.name.value && names[F.code.value]){ F.name.value=names[F.code.value]; found.push('name (remembered)'); }
+        else if(!F.name.value && v.name){ F.name.value=v.name; found.push('name'); }
+      }catch(err){ aiError(err); }
+    }
+    setS(1, found.length?`✅ Found: ${esc(found.join(', '))}`:'⚠️ Barcode not readable — retake closer, or type it.', true);
+    if(F.prod.value && F.exp.value) return;
+    $('cam2Btn').classList.add('primary'); $('cam1Btn').classList.remove('primary');
+    $('cam2Btn').scrollIntoView({behavior:'smooth',block:'center'});
+  }
+
+  // ---------- Photo 2: dates ----------
+  $('cam2').addEventListener('change', async e=>{
+    const img=await openPhoto(e,2); if(img) handleDates(img);
+  });
+  async function handleDates(img){
+    lastOcrText='';
+    const found=[];
+    setS(2,'<span class="spin"></span>Reading dates…');
+    // Some packs have a GS1 DataMatrix next to the dates — try it first
+    const raw=await decode(img); const g=raw&&parseGS1(raw);
+    if(g){
+      if(g.prod){ F.prod.value=g.prod; found.push('production '+g.prod); }
+      if(g.exp){ F.exp.value=g.exp; found.push('expiry '+g.exp); }
+      if(g.batch && !F.batch.value) F.batch.value=g.batch;
+      if(!F.code.value){ F.code.value=g.code; if(names[g.code]&&!F.name.value) F.name.value=names[g.code]; }
+    }
+    if(aiOn() && !(g && g.prod && g.exp)){
+      setS(2,(found.length?`✅ ${esc(found.join(', '))}<br>`:'')+'<span class="spin"></span>AI is reading the dates…');
+      try{
+        const v=await askAI(PROMPT_DATES, await smallJpeg(img));
+        if(!(g&&g.prod) && validDate(v.production_date)){ F.prod.value=v.production_date; found.push('production '+v.production_date); }
+        if(!(g&&g.exp) && validDate(v.expiry_date)){ F.exp.value=v.expiry_date; found.push('expiry '+v.expiry_date); }
+        if(v.batch && !F.batch.value) F.batch.value=v.batch;
+      }catch(err){ aiError(err); }
+    } else if(!aiOn() && !(g && g.prod && g.exp)){
+      setS(2,(found.length?`✅ ${esc(found.join(', '))}<br>`:'')+'<span class="spin"></span>Reading dates on your phone…');
+      try{
+        const pre=found.length?`✅ ${esc(found.join(', '))}<br>`:'';
+        const v=await ocrDates(img,(i,n)=>setS(2,pre+`<span class="spin"></span>Reading dates on your phone… (try ${i} of ${n})`));
+        if(!(g&&g.prod) && v.prod){ F.prod.value=v.prod; found.push('production '+v.prod); }
+        if(!(g&&g.exp) && v.exp){ F.exp.value=v.exp; found.push('expiry '+v.exp); }
+      }catch(err){ toast('Offline reader not available — please pick the dates by hand'); }
+    }
+    let msg = found.length?`✅ Found: ${esc(found.join(', '))}`:'⚠️ Dates not readable — retake closer, or pick them below.';
+    if(!aiOn() && lastOcrText) msg += `<details style="margin-top:6px"><summary>Text the phone read</summary><pre style="white-space:pre-wrap;font-size:12px;margin:4px 0 0">${esc(lastOcrText.slice(0,1200))}</pre></details>`;
+    setS(2, msg, true);
+    $('cam2Btn').classList.remove('primary'); $('cam1Btn').classList.add('primary');
+    (!F.name.value?F.name:!F.exp.value?F.exp:$('saveBtn')).focus();
+  }
+
+  // Scanner-gun / typed barcode: fill remembered name
+  F.code.addEventListener('change', ()=>{
+    const g=parseGS1(F.code.value);
+    if(g){ F.code.value=g.code; if(g.prod) F.prod.value=g.prod; if(g.exp) F.exp.value=g.exp; if(g.batch) F.batch.value=g.batch; }
+    const c=F.code.value.trim(); if(c && names[c] && !F.name.value) F.name.value=names[c];
+  });
+  F.code.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); F.code.dispatchEvent(new Event('change')); (F.name.value?F.exp:F.name).focus(); }});
+
+  // ---------- save / edit ----------
+  function clearForm(){
+    Object.values(F).forEach(i=>i.value=''); F.qty.value='1'; editingId=null;
+    $('saveBtn').textContent='Save item';
+    [1,2].forEach(n=>{ $('wrap'+n).style.display='none'; $('status'+n).innerHTML=''; delete $('status'+n).dataset.base; });
+    $('cam1Btn').classList.add('primary'); $('cam2Btn').classList.remove('primary');
+  }
+  $('clearBtn').onclick=clearForm;
+  $('form').addEventListener('submit', e=>{
+    e.preventDefault();
+    const rec={ name:F.name.value.trim(), code:F.code.value.trim(), prod:F.prod.value, exp:F.exp.value,
+      batch:F.batch.value.trim(), qty:F.qty.value===''?'':Number(F.qty.value) };
+    if(!rec.name && !rec.code){ toast('Enter at least an item name or barcode'); F.name.focus(); return; }
+    if(rec.prod && rec.exp && rec.prod>rec.exp){ toast('Production date is after expiry date — please check'); return; }
+    if(editingId){
+      const i=items.findIndex(x=>x.id===editingId); if(i>=0) items[i]={...items[i],...rec};
+      toast('Item updated');
+    } else {
+      items.unshift({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), added:new Date().toISOString(), ...rec});
+      toast('Item saved');
+    }
+    if(rec.code && rec.name) names[rec.code]=rec.name;
+    persist(); render(); clearForm();
+  });
+
+  function daysLeft(exp){
+    if(!exp) return null;
+    const t=new Date(); t.setHours(0,0,0,0);
+    const [y,m,d]=exp.split('-').map(Number);
+    return Math.round((new Date(y,m-1,d)-t)/86400000);
+  }
+  function badge(exp){
+    const d=daysLeft(exp); if(d===null) return '';
+    if(d<0) return `<span class="badge bad">Expired ${-d} day${d===-1?'':'s'} ago</span>`;
+    if(d<=30) return `<span class="badge warn">Expires in ${d} day${d===1?'':'s'}</span>`;
+    return `<span class="badge ok">${d} days left</span>`;
+  }
+  function render(){
+    $('count').textContent=items.length;
+    const L=$('list');
+    if(!items.length){ L.innerHTML='<div class="empty">No items yet. Take a photo to start.</div>'; return; }
+    L.innerHTML=items.map(it=>`
+      <div class="item">
+        <div class="info">
+          <div class="name">${esc(it.name||'(no name)')}</div>
+          <div class="meta">🔢 ${esc(it.code||'—')}${it.qty!==''&&it.qty!=null?` · Qty ${esc(it.qty)}`:''}${it.batch?` · Lot ${esc(it.batch)}`:''}</div>
+          <div class="meta">🏭 ${esc(it.prod||'—')} &nbsp; ⏳ ${esc(it.exp||'—')}</div>
+          ${badge(it.exp)}
+        </div>
+        <div class="acts">
+          <button class="btn" data-edit="${it.id}">Edit</button>
+          <button class="btn" data-del="${it.id}">Delete</button>
+        </div>
+      </div>`).join('');
+  }
+  $('list').addEventListener('click', async e=>{
+    const ed=e.target.closest('[data-edit]'), dl=e.target.closest('[data-del]');
+    if(ed){
+      const it=items.find(x=>x.id===ed.dataset.edit); if(!it) return;
+      editingId=it.id; F.name.value=it.name||''; F.code.value=it.code||''; F.prod.value=it.prod||'';
+      F.exp.value=it.exp||''; F.batch.value=it.batch||''; F.qty.value=it.qty??'';
+      $('saveBtn').textContent='Update item'; $('form').scrollIntoView({behavior:'smooth'}); F.name.focus();
+    }
+    if(dl){
+      if(await ask('Delete this item?')){ items=items.filter(x=>x.id!==dl.dataset.del); persist(); render(); }
+    }
+  });
+  $('wipeBtn').onclick=async()=>{
+    if(!items.length) return;
+    if(await ask(`Delete all ${items.length} items? Export to Excel first if you need them.`)){ items=[]; persist(); render(); }
+  };
+
+  // ---------- export ----------
+  const HEAD=['#','Item name','Barcode','Production date','Expiration date','Days left','Batch / lot','Quantity'];
+  const toDate = s => { if(!s) return ''; const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); };
+  function rows(forExcel){
+    return items.slice().reverse().map((it,i)=>[
+      i+1, it.name||'', it.code||'',
+      forExcel?toDate(it.prod):(it.prod||''), forExcel?toDate(it.exp):(it.exp||''),
+      daysLeft(it.exp)??'', it.batch||'', it.qty??''
+    ]);
+  }
+  $('xlsxBtn').onclick=async()=>{
+    if(!items.length){ toast('No items to export'); return; }
+    if(!window.XLSX){ toast('Excel library did not load — use Copy table'); return; }
+    const ws=XLSX.utils.aoa_to_sheet([HEAD,...rows(true)],{cellDates:true,dateNF:'yyyy-mm-dd'});
+    // keep barcodes as text so Excel doesn't turn them into 6.28E+12
+    for(let r=1;r<=items.length;r++){ const a=XLSX.utils.encode_cell({r,c:2}); if(ws[a]){ ws[a].t='s'; ws[a].v=String(ws[a].v); } }
+    ws['!cols']=[{wch:5},{wch:34},{wch:18},{wch:16},{wch:16},{wch:10},{wch:14},{wch:10}];
+    ws['!autofilter']={ref:`A1:H${items.length+1}`};
+    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Items');
+    const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
+    const stamp=new Date().toISOString().slice(0,10);
+    const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    const link=document.createElement('a'); link.href=url; link.download=`items-${stamp}.xlsx`;
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+    toast('Excel file downloaded');
+  };
+  $('copyBtn').onclick=async()=>{
+    if(!items.length){ toast('No items to copy'); return; }
+    const tsv=[HEAD,...rows(false)].map(r=>r.map(v=>String(v).replace(/[\t\n]/g,' ')).join('\t')).join('\n');
+    try{ await navigator.clipboard.writeText(tsv); toast('Copied — paste into Excel'); }
+    catch(e){ toast('Copy was blocked by the browser'); }
+  };
+
+  render();
+  function showEngine(){
+    const p=engine();
+    if(p==='local'){ $('aiBox').style.display='none'; initOCR(); return; }
+    $('aiBox').style.display='block';
+    $('aiKeyLbl').textContent=AI[p].label; $('aiHelp').textContent=AI[p].help;
+    $('aiKey').value=aiKey(p); $('aiModel').value=aiModel(p); $('aiModel').placeholder=AI[p].model;
+    ocrState(aiKey(p)?`${p==='openai'?'ChatGPT':'Gemini'} reads the name and dates (needs internet).`:'⚠️ Paste your API key to use AI. Until then the offline reader is used.');
+  }
+  $('aiKey').addEventListener('input',()=>{ store2.set('b2x_key_'+engine(), $('aiKey').value.trim()); showEngine(); });
+  $('aiModel').addEventListener('change',()=>{ store2.set('b2x_model_'+engine(), $('aiModel').value.trim()); });
+  { const saved=store2.get('b2x_engine'); const el=document.querySelector(`input[name=engine][value="${saved}"]`); if(el) el.checked=true; }
+  document.querySelectorAll('input[name=engine]').forEach(r=>r.addEventListener('change',()=>{ store2.set('b2x_engine', engine()); showEngine(); }));
+  setTimeout(showEngine, 400);
+
+  // ---------- Live camera ----------
+  let stream=null, camMode=null, camLoop=null, busy=false;
+  const camMsg=t=>{ $('camMsg').textContent=t; };
+  async function openCam(mode){
+    camMode=mode;
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ toast('Camera not available — use 🖼 Photo'); return; }
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
+    }catch(e){ toast('Camera permission denied — use 🖼 Photo, or allow the camera in browser settings'); return; }
+    const v=$('camVideo'); v.srcObject=stream; await v.play().catch(()=>{});
+    $('camModal').classList.add('show');
+    const track=stream.getVideoTracks()[0], caps=track.getCapabilities?track.getCapabilities():{};
+    $('camTorch').style.display=caps.torch?'':'none';
+    if(caps.focusMode && caps.focusMode.includes('continuous')) track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{});
+    if(mode==='barcode'){
+      $('camFrame').style.cssText='top:32%;height:22%'; $('camShot').style.display='none';
+      camMsg('Point at the barcode — it scans automatically');
+      startBarcodeLoop();
+    } else {
+      $('camFrame').style.cssText='top:28%;height:30%'; $('camShot').style.display='';
+      camMsg('Put the PROD / EXP dates inside the box, then tap Capture');
+    }
+  }
+  function closeCam(){
+    clearTimeout(camLoop); camLoop=null;
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+    $('camModal').classList.remove('show');
+  }
+  function frameCanvas(cropToBox){
+    const v=$('camVideo'), vw=v.videoWidth, vh=v.videoHeight; if(!vw) return null;
+    const c=document.createElement('canvas');
+    if(!cropToBox){ c.width=vw; c.height=vh; c.getContext('2d').drawImage(v,0,0); return c; }
+    // map the on-screen box to video pixels (video uses object-fit: cover)
+    const r=v.getBoundingClientRect(), f=$('camFrame').getBoundingClientRect();
+    const sc=Math.max(r.width/vw, r.height/vh), ox=(vw*sc-r.width)/2, oy=(vh*sc-r.height)/2;
+    let x=(f.left-r.left+ox)/sc, y=(f.top-r.top+oy)/sc, w=f.width/sc, h=f.height/sc;
+    const pad=0.12; x-=w*pad; y-=h*pad; w*=1+2*pad; h*=1+2*pad;
+    x=Math.max(0,x); y=Math.max(0,y); w=Math.min(vw-x,w); h=Math.min(vh-y,h);
+    c.width=Math.round(w); c.height=Math.round(h);
+    c.getContext('2d').drawImage(v,x,y,w,h,0,0,c.width,c.height); return c;
+  }
+  const canvasToImg = c => new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.src=c.toDataURL('image/jpeg',0.92); });
+  function startBarcodeLoop(){
+    let det=null; try{ if('BarcodeDetector' in window) det=new BarcodeDetector(); }catch(e){}
+    const Z=window.ZXing; let reader=null;
+    if(Z){ const hints=new Map(); hints.set(Z.DecodeHintType.TRY_HARDER,true); reader=new Z.MultiFormatReader(); reader.setHints(hints); }
+    const tick=async()=>{
+      if(!stream) return;
+      let raw=null;
+      try{
+        if(det){ const r=await det.detect($('camVideo')); if(r&&r.length) raw=r[0].rawValue; }
+        if(!raw && reader){
+          const c=frameCanvas(true);
+          if(c){ try{ raw=reader.decode(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(c)))).getText(); }catch(e){} }
+        }
+      }catch(e){}
+      if(raw){
+        try{ navigator.vibrate && navigator.vibrate(80); }catch(e){}
+        const c=frameCanvas(false); closeCam();
+        handleBarcode(raw, c ? await canvasToImg(c) : null);
         return;
       }
-    } catch (e) {}
-    items = examples(); seq = 3;
+      camLoop=setTimeout(tick, det?120:250);
+    };
+    tick();
   }
-  function save() {
-    try { localStorage.setItem(STORE, JSON.stringify({ items: items, seq: seq, merge: $('merge').checked })); } catch (e) {}
-  }
+  $('cam1Btn').onclick=()=>openCam('barcode');
+  $('cam2Btn').onclick=()=>openCam('dates');
+  $('camClose').onclick=closeCam;
+  $('camShot').onclick=async()=>{
+    const c=frameCanvas(true); closeCam(); if(!c) return;
+    const img=await canvasToImg(c);
+    $('photo2').src=img.src; $('wrap2').style.display='flex';
+    handleDates(img);
+  };
+  $('camTorch').onclick=()=>{
+    if(!stream) return; const t=stream.getVideoTracks()[0]; const on=!t._torch; t._torch=on;
+    t.applyConstraints({advanced:[{torch:on}]}).catch(()=>{});
+  };
 
-  function pad(n) { return String(n).padStart(2, '0'); }
-  function stamp(t) {
-    var d = new Date(t);
-    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  // ---------- installable app ----------
+  if('serviceWorker' in navigator && location.protocol==='https:'){
+    window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
   }
-  function prettyFormat(f) { return (f || 'MANUAL').replace(/_/g, '-'); }
-
-  function setStatus(msg, kind) {
-    var el = $('status');
-    el.textContent = msg || '';
-    el.className = 'status' + (kind ? ' ' + kind : '');
-  }
-
-  // Feedback on a successful scan
-  var audio = null;
-  function beep() {
-    try {
-      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
-      var o = audio.createOscillator(), g = audio.createGain();
-      o.frequency.value = 1760; g.gain.value = 0.06;
-      o.connect(g); g.connect(audio.destination);
-      o.start(); o.stop(audio.currentTime + 0.08);
-    } catch (e) {}
-    try { navigator.vibrate && navigator.vibrate(40); } catch (e) {}
-    var vf = $('viewfinder');
-    vf.classList.add('hit');
-    setTimeout(function () { vf.classList.remove('hit'); }, 300);
-  }
-
-  var last = { code: null, at: 0 };
-  function addCode(raw, format, fromCamera) {
-    var code = String(raw || '').trim();
-    if (!code) return;
-    var now = Date.now();
-    // The camera sees the same code many times a second; ignore repeats for a moment.
-    if (fromCamera && code === last.code && now - last.at < 2500) return;
-    last = { code: code, at: now };
-
-    if (items.some(function (i) { return i.example; })) dropExamples();
-    var existing = $('merge').checked ? items.find(function (i) { return i.code === code; }) : null;
-    if (existing) {
-      existing.qty += 1; existing.time = now;
-      items = [existing].concat(items.filter(function (i) { return i !== existing; }));
-      freshId = existing.id;
-      setStatus('Added another ' + code + ' (qty ' + existing.qty + ')', 'ok');
-    } else {
-      seq += 1;
-      var item = { id: 'i' + now + Math.random().toString(36).slice(2, 6), seq: seq, code: code, format: format || 'MANUAL', qty: 1, note: '', time: now };
-      items.unshift(item);
-      freshId = item.id;
-      setStatus('Added ' + code, 'ok');
-    }
-    beep(); save(); render();
-  }
-
-  function render() {
-    var tbody = $('rows');
-    tbody.textContent = '';
-    if (!items.length) {
-      var tr = document.createElement('tr');
-      var td = document.createElement('td');
-      td.colSpan = 7; td.className = 'empty';
-      td.textContent = 'No barcodes yet. Start the camera, scan a photo, or type a code to add the first one.';
-      tr.appendChild(td); tbody.appendChild(tr);
-    }
-    items.forEach(function (it) {
-      var tr = document.createElement('tr');
-      tr.dataset.id = it.id;
-      if (it.id === freshId) tr.className = 'fresh';
-      function cell(cls, text) { var td = document.createElement('td'); if (cls) td.className = cls; if (text != null) td.textContent = text; tr.appendChild(td); return td; }
-      cell('num', it.seq);
-      var c = cell('code', it.code);
-      if (it.example) { var ex = document.createElement('span'); ex.className = 'ex'; ex.textContent = 'Example'; c.appendChild(ex); }
-      var f = cell(); var chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = prettyFormat(it.format); f.appendChild(chip);
-      var q = cell(); q.innerHTML = '<span class="qty"><button type="button" data-act="dec" aria-label="Decrease quantity">−</button><output></output><button type="button" data-act="inc" aria-label="Increase quantity">+</button></span>';
-      q.querySelector('output').textContent = it.qty;
-      var n = cell(); var inp = document.createElement('input'); inp.type = 'text'; inp.id = 'note-' + it.id; inp.value = it.note || ''; inp.placeholder = 'Add a note'; inp.setAttribute('aria-label', 'Note for ' + it.code); inp.dataset.act = 'note'; n.appendChild(inp);
-      cell('time', stamp(it.time));
-      var d = cell(); d.innerHTML = '<button type="button" class="del" data-act="del">Remove</button>';
-      tbody.appendChild(tr);
-    });
-    $('stat-items').textContent = items.length;
-    $('stat-qty').textContent = items.reduce(function (s, i) { return s + i.qty; }, 0);
-    $('example-banner').hidden = !items.some(function (i) { return i.example; });
-    var empty = !items.length;
-    $('export-xlsx').disabled = empty; $('export-csv').disabled = empty;
-  }
-
-  function find(el) {
-    var tr = el.closest('tr');
-    return tr && items.find(function (i) { return i.id === tr.dataset.id; });
-  }
-  $('rows').addEventListener('click', function (e) {
-    var b = e.target.closest('button[data-act]');
-    if (!b) return;
-    var it = find(b); if (!it) return;
-    if (b.dataset.act === 'inc') it.qty += 1;
-    if (b.dataset.act === 'dec') it.qty = Math.max(1, it.qty - 1);
-    if (b.dataset.act === 'del') items = items.filter(function (i) { return i !== it; });
-    save(); render();
-  });
-  $('rows').addEventListener('input', function (e) {
-    if (e.target.dataset.act !== 'note') return;
-    var it = find(e.target); if (it) { it.note = e.target.value; save(); }
-  });
-
-  $('manual').addEventListener('submit', function (e) {
-    e.preventDefault();
-    addCode($('manual-code').value, 'MANUAL', false);
-    $('manual-code').value = '';
-    $('manual-code').focus();
-  });
-  $('merge').addEventListener('change', save);
-  function dropExamples() {
-    items = items.filter(function (i) { return !i.example; });
-    seq = items.reduce(function (m, i) { return Math.max(m, i.seq); }, 0);
-  }
-  $('clear-examples').addEventListener('click', function () { dropExamples(); save(); render(); });
-
-  var armTimer = null;
-  $('clear').addEventListener('click', function () {
-    var b = $('clear');
-    if (!b.classList.contains('armed')) {
-      b.classList.add('armed'); b.textContent = 'Tap again to clear';
-      armTimer = setTimeout(function () { b.classList.remove('armed'); b.textContent = 'Clear all'; }, 3000);
-      return;
-    }
-    clearTimeout(armTimer);
-    b.classList.remove('armed'); b.textContent = 'Clear all';
-    items = []; seq = 0; save(); render();
-    setStatus('Sheet cleared.');
-  });
-
-  // Exports
-  function exportRows() {
-    return items.slice().sort(function (a, b) { return a.seq - b.seq; });
-  }
-  function fileStamp() {
-    var d = new Date();
-    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes());
-  }
-  async function saveFile(name, data, mime) {
-    if (window.claude && typeof window.claude.use === 'function') {
-      var downloads = await window.claude.use('downloads');
-      if (!downloads) throw new Error('Saving files is not available in this view.');
-      await downloads.save({ filename: name, data: data });
-      return;
-    }
-    var url = URL.createObjectURL(new Blob([data], { type: mime }));
-    var a = document.createElement('a');
-    a.href = url; a.download = name;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-  }
-  function saveError(err) {
-    if (err && err.code === 'declined') { setStatus('Export cancelled.'); return; }
-    setStatus((err && err.message) || 'The file could not be saved.', 'err');
-  }
-
-  $('export-xlsx').addEventListener('click', async function () {
-    if (!window.XLSX) { setStatus('The Excel library did not load. Check your connection and reload the page.', 'err'); return; }
-    var rows = exportRows();
-    var aoa = [['No', 'Barcode', 'Format', 'Quantity', 'Note', 'Scanned at']];
-    rows.forEach(function (r) {
-      aoa.push([r.seq, { t: 's', v: r.code }, prettyFormat(r.format), r.qty, r.note || '', stamp(r.time)]);
-    });
-    aoa.push(['', '', 'Total', { t: 'n', f: 'SUM(D2:D' + (rows.length + 1) + ')' }, '', '']);
-    var ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = [{ wch: 6 }, { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 32 }, { wch: 20 }];
-    ws['!autofilter'] = { ref: 'A1:F' + (rows.length + 1) };
-    var wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Barcodes');
-    var buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    try {
-      await saveFile('barcodes-' + fileStamp() + '.xlsx', buf, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      setStatus('Exported ' + rows.length + ' rows to Excel.', 'ok');
-    } catch (err) { saveError(err); }
-  });
-
-  $('export-csv').addEventListener('click', async function () {
-    function q(v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
-    var lines = ['No,Barcode,Format,Quantity,Note,Scanned at'];
-    exportRows().forEach(function (r) {
-      lines.push([r.seq, r.code, prettyFormat(r.format), r.qty, r.note, stamp(r.time)].map(q).join(','));
-    });
-    try {
-      await saveFile('barcodes-' + fileStamp() + '.csv', '﻿' + lines.join('\r\n'), 'text/csv');
-      setStatus('Exported CSV.', 'ok');
-    } catch (err) { saveError(err); }
-  });
-
-  // Camera and photo scanning
-  var reader = null, live = false;
-  function getReader() {
-    if (!window.ZXing) return null;
-    if (!reader) {
-      var hints = new Map();
-      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-      reader = new ZXing.BrowserMultiFormatReader(hints, 300);
-    }
-    return reader;
-  }
-  function formatName(res) {
-    try { return ZXing.BarcodeFormat[res.getBarcodeFormat()]; } catch (e) { return ''; }
-  }
-  function cameraError(err) {
-    var name = err && err.name;
-    if (name === 'NotAllowedError' || name === 'SecurityError') return 'Camera access is blocked here. Allow the camera in your browser settings, or use Scan a photo.';
-    if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'No camera was found on this device. Use Scan a photo or type the code.';
-    if (name === 'NotReadableError') return 'The camera is in use by another app. Close it and try again.';
-    return 'The camera could not start. Use Scan a photo or type the code instead.';
-  }
-  function setLive(on) {
-    live = on;
-    $('viewfinder').classList.toggle('live', on);
-    $('idle').hidden = on;
-    $('cam-toggle').textContent = on ? 'Stop camera' : 'Start camera';
-  }
-  async function startCamera(deviceId) {
-    var r = getReader();
-    if (!r) { setStatus('The scanner library did not load. Check your connection and reload the page.', 'err'); return; }
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { setStatus(cameraError({}), 'err'); return; }
-    r.reset();
-    setStatus('Starting camera…');
-    try {
-      await r.decodeFromVideoDevice(deviceId || undefined, $('video'), function (res) {
-        if (res) addCode(res.getText(), formatName(res), true);
-      });
-      setLive(true);
-      setStatus('Point the camera at a barcode.');
-      var devs = await r.listVideoInputDevices();
-      var sel = $('cam-select');
-      if (devs.length > 1 && !sel.options.length) {
-        devs.forEach(function (d, i) {
-          var o = document.createElement('option');
-          o.value = d.deviceId; o.textContent = d.label || 'Camera ' + (i + 1);
-          sel.appendChild(o);
-        });
-        sel.hidden = false;
-      }
-    } catch (err) {
-      r.reset(); setLive(false);
-      setStatus(cameraError(err), 'err');
-    }
-  }
-  function stopCamera() {
-    if (reader) reader.reset();
-    setLive(false);
-    setStatus('Camera stopped.');
-  }
-  $('cam-toggle').addEventListener('click', function () { live ? stopCamera() : startCamera(); });
-  $('cam-select').addEventListener('change', function (e) { startCamera(e.target.value); });
-
-  $('photo').addEventListener('change', async function (e) {
-    var file = e.target.files && e.target.files[0];
-    e.target.value = '';
-    if (!file) return;
-    if (!window.ZXing) { setStatus('The scanner library did not load. Check your connection and reload the page.', 'err'); return; }
-    setStatus('Reading photo…');
-    var url = URL.createObjectURL(file);
-    try {
-      var hints = new Map();
-      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-      var res = await new ZXing.BrowserMultiFormatReader(hints).decodeFromImageUrl(url);
-      addCode(res.getText(), formatName(res), false);
-    } catch (err) {
-      setStatus('No barcode found in that photo. Try a closer, sharper shot with the whole code in view.', 'err');
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  });
-
-  document.addEventListener('visibilitychange', function () { if (document.hidden && live) stopCamera(); });
-
-  load();
-  render();
 })();
 </script>
 </body>

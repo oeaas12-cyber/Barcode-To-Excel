@@ -1,5 +1,5 @@
 // Keeps the app and its libraries on the phone so it opens without internet.
-const CACHE = 'b2x-v1';
+const CACHE = 'b2x-v2';
 const LOCAL = ['./', './index.html', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png', './tess/eng.traineddata'];
 const CDN = /^https:\/\/(cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com)\//;
 
@@ -17,7 +17,8 @@ self.addEventListener('fetch', e => {
   if (!sameOrigin && !CDN.test(req.url)) return; // AI requests etc. go straight to the network
   if (sameOrigin && (req.mode === 'navigate' || url.pathname.endsWith('.html'))) {
     // app page: network first so updates arrive, cache when offline
-    e.respondWith(fetch(req).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(req, copy)); return r; })
+    // cache:'no-cache' skips the browser's HTTP cache (GitHub Pages allows 10 minutes), so updates show at once
+    e.respondWith(fetch(req.url, {cache:'no-cache'}).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(req, copy)); return r; })
       .catch(() => caches.match(req).then(r => r || caches.match('./index.html'))));
     return;
   }

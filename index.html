@@ -227,6 +227,7 @@
     <div class="list" id="list"></div>
     <p class="hint" data-i18n="keptHint"></p>
   </section>
+  <p class="hint" style="text-align:center" dir="ltr">Version 2026-10-30 · dates + warehouse</p>
 </main>
 
 <div id="camModal">
@@ -1151,7 +1152,9 @@ Never guess; use "" for anything unclear.`;
 
   // ---------- installable app ----------
   if('serviceWorker' in navigator && location.protocol==='https:'){
-    window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+    window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{}));
+    let reloaded=false, hadController=!!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(hadController && !reloaded){ reloaded=true; location.reload(); } });
   }
 })();
 </script>

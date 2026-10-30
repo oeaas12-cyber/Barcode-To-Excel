@@ -78,98 +78,119 @@
   .modal .box{background:var(--card);border-radius:14px;padding:18px;max-width:360px;width:100%}
   .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s 1s linear infinite;vertical-align:-2px;margin-right:6px}
   @keyframes s{to{transform:rotate(360deg)}}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .lang{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .lang button{appearance:none;border:0;background:var(--card);color:var(--ink);font:inherit;font-size:14px;font-weight:600;padding:8px 12px;cursor:pointer}
+  .lang button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+  .withbtn{display:flex;gap:8px}
+  .withbtn input{flex:1;min-width:0}
+  .btn.scan{white-space:nowrap;padding:8px 12px;font-size:14px}
+  .hint a{color:var(--accent);font-weight:600}
+  [dir=rtl] input[dir=ltr]{text-align:right}
 </style>
 </head>
 <body>
 <header>
-  <h1>Barcode → Excel</h1>
-  <p>Photograph an item, check the details, save it, then export all items to Excel.</p>
+  <div class="top">
+    <h1 data-i18n="title">Barcode → Excel</h1>
+    <div class="lang" role="group" aria-label="Language / اللغة">
+      <button type="button" data-lang="en">English</button>
+      <button type="button" data-lang="ar">العربية</button>
+    </div>
+  </div>
+  <p data-i18n="subtitle"></p>
 </header>
 <main>
 
   <section class="card">
-    <h2>1. Scan item</h2>
+    <h2 data-i18n="scanItem"></h2>
     <div class="row" style="flex-wrap:nowrap">
-      <button class="btn primary big" type="button" id="cam1Btn" style="flex:3">📷 1. Scan barcode</button>
-      <label class="btn big" for="cam1" style="flex:1;text-align:center;font-size:15px" title="Use a photo instead">🖼 Photo</label>
+      <button class="btn primary big" type="button" id="cam1Btn" style="flex:3" data-i18n="scanBarcode"></button>
+      <label class="btn big" for="cam1" style="flex:1;text-align:center;font-size:15px" data-i18n="photo" data-i18n-title="photoTitle"></label>
     </div>
     <input id="cam1" type="file" accept="image/*" capture="environment" hidden>
     <div id="wrap1" class="photoWrap">
-      <img id="photo1" class="thumb" alt="Barcode photo">
+      <img id="photo1" class="thumb" alt="">
       <div id="status1" class="status"></div>
     </div>
     <div class="row" style="flex-wrap:nowrap;margin-top:12px">
-      <button class="btn big" type="button" id="cam2Btn" style="flex:3">📅 2. Capture dates</button>
-      <label class="btn big" for="cam2" style="flex:1;text-align:center;font-size:15px" title="Use a photo instead">🖼 Photo</label>
+      <button class="btn big" type="button" id="cam2Btn" style="flex:3" data-i18n="captureDates"></button>
+      <label class="btn big" for="cam2" style="flex:1;text-align:center;font-size:15px" data-i18n="photo" data-i18n-title="photoTitle"></label>
     </div>
     <input id="cam2" type="file" accept="image/*" capture="environment" hidden>
     <div id="wrap2" class="photoWrap">
-      <img id="photo2" class="thumb" alt="Dates photo">
+      <img id="photo2" class="thumb" alt="">
       <div id="status2" class="status"></div>
     </div>
-    <label style="margin-top:14px">Read text using</label>
+    <label style="margin-top:14px" data-i18n="readUsing"></label>
     <div class="seg">
-      <input type="radio" name="engine" id="engLocal" value="local" checked><label for="engLocal">📱 Offline</label>
+      <input type="radio" name="engine" id="engLocal" value="local" checked><label for="engLocal" data-i18n="offline"></label>
       <input type="radio" name="engine" id="engOpenai" value="openai"><label for="engOpenai">ChatGPT</label>
       <input type="radio" name="engine" id="engGemini" value="gemini"><label for="engGemini">Gemini</label>
     </div>
     <div id="aiBox" class="aibox" style="display:none">
-      <label for="aiKey" id="aiKeyLbl">API key</label>
-      <input id="aiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your API key">
-      <label for="aiModel">Model</label>
-      <input id="aiModel" type="text" autocomplete="off" spellcheck="false">
-      <p class="hint" id="aiHelp"></p>
-      <p class="hint">Your key is saved only on this phone and is sent only to the AI company you chose. AI use is billed to your own account by that company.</p>
+      <label for="aiKey" id="aiKeyLbl"></label>
+      <input id="aiKey" type="password" autocomplete="off" spellcheck="false" dir="ltr" data-i18n-ph="pasteKey">
+      <p class="hint"><span id="aiHelp"></span> <a id="aiLink" target="_blank" rel="noopener" data-i18n="getKey"></a></p>
+      <label for="aiModel" data-i18n="model"></label>
+      <input id="aiModel" type="text" autocomplete="off" spellcheck="false" dir="ltr">
+      <p class="hint" data-i18n="keyPrivacy"></p>
     </div>
     <div class="hint" id="ocrState"></div>
-    <p class="hint">1. Scan: hold the barcode inside the box until the phone vibrates.<br>2. Dates: get close so the dates fill most of the photo, hold steady, and avoid glare on shiny packs.</p>
+    <p class="hint" data-i18n-html="scanTips"></p>
   </section>
 
   <section class="card">
-    <h2>2. Item details</h2>
+    <h2 data-i18n="details"></h2>
     <form id="form" autocomplete="off">
-      <label for="f_name">Item name</label>
-      <input id="f_name" type="text" placeholder="e.g. Almarai Milk 1L">
-      <label for="f_code">Barcode number</label>
-      <input id="f_code" type="text" inputmode="numeric" placeholder="Scan, or type / use a scanner gun">
+      <label for="f_name" data-i18n="name"></label>
+      <input id="f_name" type="text" data-i18n-ph="namePh">
+      <label for="f_code" data-i18n="code"></label>
+      <input id="f_code" type="text" inputmode="numeric" dir="ltr" data-i18n-ph="codePh">
       <div class="row">
         <div>
-          <label for="f_prod">Production (factory) date</label>
-          <input id="f_prod" type="date">
+          <label for="f_prod" data-i18n="prod"></label>
+          <div class="withbtn">
+            <input id="f_prod" type="date" dir="ltr">
+            <button class="btn scan" type="button" data-scan="prod" data-i18n="scanThis" data-i18n-title="scanProdTitle"></button>
+          </div>
         </div>
         <div>
-          <label for="f_exp">Expiration date</label>
-          <input id="f_exp" type="date">
+          <label for="f_exp" data-i18n="exp"></label>
+          <div class="withbtn">
+            <input id="f_exp" type="date" dir="ltr">
+            <button class="btn scan" type="button" data-scan="exp" data-i18n="scanThis" data-i18n-title="scanExpTitle"></button>
+          </div>
         </div>
       </div>
       <div class="row">
         <div>
-          <label for="f_batch">Batch / lot (optional)</label>
-          <input id="f_batch" type="text">
+          <label for="f_batch" data-i18n="batch"></label>
+          <input id="f_batch" type="text" dir="ltr">
         </div>
         <div>
-          <label for="f_qty">Quantity</label>
-          <input id="f_qty" type="number" min="0" step="1" value="1">
+          <label for="f_qty" data-i18n="qty"></label>
+          <input id="f_qty" type="number" min="0" step="1" value="1" dir="ltr">
         </div>
       </div>
       <div class="row" style="margin-top:14px">
-        <button class="btn primary" type="submit" id="saveBtn">Save item</button>
-        <button class="btn" type="button" id="clearBtn">Clear form</button>
+        <button class="btn primary" type="submit" id="saveBtn"></button>
+        <button class="btn" type="button" id="clearBtn" data-i18n="clear"></button>
       </div>
     </form>
   </section>
 
   <section class="card">
     <div class="row" style="align-items:center;margin-bottom:10px">
-      <h2 style="margin:0;flex:1 1 auto">3. Saved items (<span id="count">0</span>)</h2>
+      <h2 style="margin:0;flex:1 1 auto"><span data-i18n="saved"></span> (<span id="count">0</span>)</h2>
     </div>
     <div class="row" style="margin-bottom:12px">
-      <button class="btn primary" id="xlsxBtn">⬇ Export Excel</button>
-      <button class="btn" id="copyBtn">Copy table</button>
-      <button class="btn" id="wipeBtn">Delete all</button>
+      <button class="btn primary" id="xlsxBtn" data-i18n="export"></button>
+      <button class="btn" id="copyBtn" data-i18n="copy"></button>
+      <button class="btn" id="wipeBtn" data-i18n="wipe"></button>
     </div>
     <div class="list" id="list"></div>
-    <p class="hint">Items are kept in this browser on this device. Export to Excel before clearing your browser data.</p>
+    <p class="hint" data-i18n="keptHint"></p>
   </section>
 </main>
 
@@ -178,9 +199,9 @@
   <div id="camFrame"></div>
   <div id="camMsg"></div>
   <div id="camBar">
-    <button class="btn" type="button" id="camClose">Close</button>
-    <button class="btn" type="button" id="camTorch" style="display:none">🔦 Light</button>
-    <button class="btn primary" type="button" id="camShot">Capture</button>
+    <button class="btn" type="button" id="camClose" data-i18n="close"></button>
+    <button class="btn" type="button" id="camTorch" style="display:none" data-i18n="light"></button>
+    <button class="btn primary" type="button" id="camShot" data-i18n="capture"></button>
   </div>
 </div>
 <div id="toast"></div>
@@ -188,8 +209,8 @@
   <div class="box">
     <p id="confirmText" style="margin:0 0 16px"></p>
     <div class="row">
-      <button class="btn" id="confirmNo">Cancel</button>
-      <button class="btn primary" id="confirmYes" style="background:var(--bad);border-color:var(--bad);color:#fff">Delete</button>
+      <button class="btn" id="confirmNo" data-i18n="cancel"></button>
+      <button class="btn primary" id="confirmYes" style="background:var(--bad);border-color:var(--bad);color:#fff" data-i18n="del"></button>
     </div>
   </div>
 </div>
@@ -199,6 +220,105 @@
   const $ = id => document.getElementById(id);
   const F = { name:$('f_name'), code:$('f_code'), prod:$('f_prod'), exp:$('f_exp'), batch:$('f_batch'), qty:$('f_qty') };
   let items = [], names = {}, editingId = null;
+
+  // ---------- language ----------
+  const I18N = {
+    en: {
+      title:'Barcode → Excel', subtitle:'Scan an item, check the details, save it, then export all items to Excel.',
+      scanItem:'1. Scan item', scanBarcode:'📷 1. Scan barcode', photo:'🖼 Photo', photoTitle:'Use a photo instead',
+      captureDates:'📅 2. Capture both dates', readUsing:'Read text using', offline:'📱 On phone (free)',
+      pasteKey:'Paste your API key', getKey:'Get a key ↗', model:'Model',
+      keyPrivacy:'Your key is saved only on this phone and is sent only to the AI company you chose. AI use is billed to your own account by that company.',
+      scanTips:'1. Barcode: hold it inside the box until the phone vibrates.<br>2. Dates: tap <b>📷 Scan</b> next to a date to read just that date, or <b>Capture both dates</b> when they are printed together. Get close, hold steady, and avoid glare on shiny packs.',
+      details:'2. Item details', name:'Item name', namePh:'e.g. Almarai Milk 1L', code:'Barcode number', codePh:'Scan, or type / use a scanner gun',
+      prod:'Production (factory) date', exp:'Expiration date', scanThis:'📷 Scan', scanProdTitle:'Scan the production date', scanExpTitle:'Scan the expiration date',
+      batch:'Batch / lot (optional)', qty:'Quantity', save:'Save item', update:'Update item', clear:'Clear form',
+      saved:'3. Saved items', export:'⬇ Export Excel', copy:'Copy table', wipe:'Delete all',
+      keptHint:'Items are kept in this browser on this device. Export to Excel before clearing your browser data.',
+      close:'Close', light:'🔦 Light', capture:'Capture', cancel:'Cancel', del:'Delete', edit:'Edit',
+      noName:'(no name)', qtyShort:'Qty', lot:'Lot', empty:'No items yet. Scan a barcode to start.',
+      expiredAgo:'Expired {n} day(s) ago', expiresIn:'Expires in {n} day(s)', daysLeft:'{n} days left',
+      readingBarcode:'Reading barcode…', readingDigits:'Reading the numbers under the barcode…', aiName:'AI is reading the name…',
+      found:'Found: {x}', barcodeX:'barcode {c}', fromText:' (from text)', nameRemembered:'name (remembered)',
+      w_name:'name', w_barcode:'barcode', prodW:'production date', expW:'expiry date', batchW:'batch',
+      prodX:'production {d}', expX:'expiry {d}',
+      barcodeNotRead:'⚠️ Barcode not readable — retake closer, or type it.',
+      readingDates:'Reading dates…', aiDates:'AI is reading the dates…', phoneDates:'Reading dates on your phone…', tryN:'(try {i} of {n})',
+      datesNotRead:'⚠️ Dates not readable — retake closer, or pick them below.', phoneText:'Text the phone read',
+      stillNeeded:'✏️ Still needed: {x}', allSet:'All set — check the details, then tap <b>Save item</b>.',
+      couldNotOpen:'Could not open that photo', needNameOrCode:'Enter at least an item name or barcode',
+      prodAfterExp:'Production date is after expiry date — please check', itemUpdated:'Item updated', itemSaved:'Item saved',
+      askDel:'Delete this item?', askWipe:'Delete all {n} items? Export to Excel first if you need them.',
+      noItems:'No items to export', xlsxMissing:'Excel library did not load — use Copy table', downloaded:'Excel file downloaded',
+      noCopy:'No items to copy', copied:'Copied — paste into Excel', copyBlocked:'Copy was blocked by the browser',
+      ocrOff:'Phone reader not available — please pick the dates by hand',
+      ocrPrep:'Preparing the phone reader (first time only, about 3 MB)…', ocrReady:'✅ Phone reader ready — dates are read on your phone, free and offline.',
+      ocrFail:'⚠️ Phone reader could not start — check your internet for the first load, or type the dates by hand.',
+      aiReady:'{p} reads the name and dates (needs internet).', aiNoKey:'⚠️ Paste your API key to use AI. Until then the phone reader is used.',
+      noKey:'Add your API key first (under "Read text using")', badKey:'The API key was rejected — please check it',
+      rateLimited:'AI limit reached — wait a moment, or switch to On phone', aiErr:'AI error: {m} — fill it by hand or switch to On phone',
+      openaiLabel:'OpenAI (ChatGPT) API key', geminiLabel:'Google Gemini API key',
+      openaiHelp:'Sign in at platform.openai.com, create an API key and paste it here. A ChatGPT Plus subscription does not include API use; it is billed separately.',
+      geminiHelp:'Free: sign in with your Google account, tap "Create API key", copy it and paste it here.',
+      camNA:'Camera not available — use 🖼 Photo', camDenied:'Camera permission denied — use 🖼 Photo, or allow the camera in browser settings',
+      camBarcode:'Point at the barcode — it scans automatically', camDates:'Put the production and expiry dates inside the box, then tap Capture',
+      camProd:'Put the PRODUCTION date inside the box, then tap Capture', camExp:'Put the EXPIRY date inside the box, then tap Capture',
+      head:['#','Item name','Barcode','Production date','Expiration date','Days left','Batch / lot','Quantity'], sheet:'Items'
+    },
+    ar: {
+      title:'باركود ← إكسل', subtitle:'امسح المنتج، راجع البيانات، احفظه، ثم صدّر كل المنتجات إلى ملف إكسل.',
+      scanItem:'1. مسح المنتج', scanBarcode:'📷 1. مسح الباركود', photo:'🖼 صورة', photoTitle:'استخدم صورة بدلاً من الكاميرا',
+      captureDates:'📅 2. التقاط التاريخين معاً', readUsing:'قراءة النص بواسطة', offline:'📱 على الجهاز (مجاني)',
+      pasteKey:'الصق مفتاح API هنا', getKey:'احصل على مفتاح ↗', model:'النموذج',
+      keyPrivacy:'يُحفظ المفتاح على هذا الجهاز فقط ويُرسل فقط إلى شركة الذكاء الاصطناعي التي اخترتها. تُحتسب تكلفة الاستخدام على حسابك لدى تلك الشركة.',
+      scanTips:'1. الباركود: ضعه داخل الإطار حتى يهتز الهاتف.<br>2. التواريخ: اضغط <b>📷 مسح</b> بجانب التاريخ لقراءته وحده، أو <b>التقاط التاريخين معاً</b> إذا كانا مطبوعين بجانب بعض. اقترب وثبّت الهاتف وتجنّب انعكاس الضوء.',
+      details:'2. بيانات المنتج', name:'اسم المنتج', namePh:'مثال: حليب المراعي 1 لتر', code:'رقم الباركود', codePh:'امسح أو اكتب أو استخدم قارئ الباركود',
+      prod:'تاريخ الإنتاج', exp:'تاريخ الانتهاء', scanThis:'📷 مسح', scanProdTitle:'مسح تاريخ الإنتاج', scanExpTitle:'مسح تاريخ الانتهاء',
+      batch:'رقم التشغيلة (اختياري)', qty:'الكمية', save:'حفظ المنتج', update:'تحديث المنتج', clear:'مسح الحقول',
+      saved:'3. المنتجات المحفوظة', export:'⬇ تصدير إلى إكسل', copy:'نسخ الجدول', wipe:'حذف الكل',
+      keptHint:'تُحفظ المنتجات في متصفح هذا الجهاز فقط. صدّرها إلى إكسل قبل مسح بيانات المتصفح.',
+      close:'إغلاق', light:'🔦 إضاءة', capture:'التقاط', cancel:'إلغاء', del:'حذف', edit:'تعديل',
+      noName:'(بدون اسم)', qtyShort:'الكمية', lot:'التشغيلة', empty:'لا توجد منتجات بعد. ابدأ بمسح باركود.',
+      expiredAgo:'منتهي منذ {n} يوم', expiresIn:'ينتهي خلال {n} يوم', daysLeft:'متبقٍ {n} يوم',
+      readingBarcode:'جارٍ قراءة الباركود…', readingDigits:'جارٍ قراءة الأرقام أسفل الباركود…', aiName:'الذكاء الاصطناعي يقرأ الاسم…',
+      found:'تم العثور على: {x}', barcodeX:'الباركود {c}', fromText:' (من النص)', nameRemembered:'الاسم (محفوظ سابقاً)',
+      w_name:'الاسم', w_barcode:'الباركود', prodW:'تاريخ الإنتاج', expW:'تاريخ الانتهاء', batchW:'التشغيلة',
+      prodX:'الإنتاج {d}', expX:'الانتهاء {d}',
+      barcodeNotRead:'⚠️ تعذّرت قراءة الباركود — صوّر من مسافة أقرب أو اكتبه يدوياً.',
+      readingDates:'جارٍ قراءة التواريخ…', aiDates:'الذكاء الاصطناعي يقرأ التواريخ…', phoneDates:'جارٍ قراءة التواريخ على جهازك…', tryN:'(محاولة {i} من {n})',
+      datesNotRead:'⚠️ تعذّرت قراءة التاريخ — صوّر من مسافة أقرب أو اختره يدوياً.', phoneText:'النص الذي قرأه الجهاز',
+      stillNeeded:'✏️ ما زال مطلوباً: {x}', allSet:'كل شيء جاهز — راجع البيانات ثم اضغط <b>حفظ المنتج</b>.',
+      couldNotOpen:'تعذّر فتح الصورة', needNameOrCode:'أدخل اسم المنتج أو الباركود على الأقل',
+      prodAfterExp:'تاريخ الإنتاج بعد تاريخ الانتهاء — يرجى التحقق', itemUpdated:'تم تحديث المنتج', itemSaved:'تم حفظ المنتج',
+      askDel:'حذف هذا المنتج؟', askWipe:'حذف جميع المنتجات ({n})؟ صدّرها إلى إكسل أولاً إذا كنت تحتاجها.',
+      noItems:'لا توجد منتجات للتصدير', xlsxMissing:'لم يتم تحميل مكتبة إكسل — استخدم نسخ الجدول', downloaded:'تم تنزيل ملف إكسل',
+      noCopy:'لا توجد منتجات للنسخ', copied:'تم النسخ — الصقه في إكسل', copyBlocked:'منع المتصفح عملية النسخ',
+      ocrOff:'القارئ على الجهاز غير متاح — يرجى اختيار التواريخ يدوياً',
+      ocrPrep:'جارٍ تجهيز القارئ على الجهاز (أول مرة فقط، حوالي 3 ميجابايت)…', ocrReady:'✅ القارئ جاهز — تُقرأ التواريخ على جهازك مجاناً ودون إنترنت.',
+      ocrFail:'⚠️ تعذّر تشغيل القارئ — تأكد من الاتصال بالإنترنت في أول استخدام، أو أدخل التواريخ يدوياً.',
+      aiReady:'{p} يقرأ الاسم والتواريخ (يحتاج إنترنت).', aiNoKey:'⚠️ الصق مفتاح API لاستخدام الذكاء الاصطناعي. حتى ذلك الحين يُستخدم القارئ على الجهاز.',
+      noKey:'أضف مفتاح API أولاً (ضمن "قراءة النص بواسطة")', badKey:'تم رفض مفتاح API — يرجى التحقق منه',
+      rateLimited:'تم بلوغ حد الاستخدام — انتظر قليلاً أو اختر "على الجهاز"', aiErr:'خطأ في الذكاء الاصطناعي: {m} — أدخل البيانات يدوياً أو اختر "على الجهاز"',
+      openaiLabel:'مفتاح API من OpenAI (ChatGPT)', geminiLabel:'مفتاح API من Google Gemini',
+      openaiHelp:'سجّل الدخول في platform.openai.com وأنشئ مفتاح API والصقه هنا. اشتراك ChatGPT Plus لا يشمل استخدام API؛ يُحتسب بشكل منفصل.',
+      geminiHelp:'مجاني: سجّل الدخول بحساب Google، اضغط "Create API key"، انسخ المفتاح والصقه هنا.',
+      camNA:'الكاميرا غير متاحة — استخدم 🖼 صورة', camDenied:'تم رفض إذن الكاميرا — استخدم 🖼 صورة أو اسمح بالكاميرا من إعدادات المتصفح',
+      camBarcode:'وجّه الكاميرا إلى الباركود — يتم المسح تلقائياً', camDates:'ضع تاريخي الإنتاج والانتهاء داخل الإطار ثم اضغط التقاط',
+      camProd:'ضع تاريخ الإنتاج داخل الإطار ثم اضغط التقاط', camExp:'ضع تاريخ الانتهاء داخل الإطار ثم اضغط التقاط',
+      head:['#','اسم المنتج','الباركود','تاريخ الإنتاج','تاريخ الانتهاء','الأيام المتبقية','التشغيلة','الكمية'], sheet:'المنتجات'
+    }
+  };
+  let lang = (()=>{ try{ const v=localStorage.getItem('b2x_lang'); if(v==='en'||v==='ar') return v; }catch(e){} return /^ar\b/i.test(navigator.language||'')?'ar':'en'; })();
+  const t = (k, vars) => { let v=(I18N[lang][k]??I18N.en[k]??k); if(vars) for(const n in vars) v=v.split('{'+n+'}').join(vars[n]); return v; };
+  function applyLang(){
+    document.documentElement.lang=lang; document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+    document.title=t('title');
+    document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
+    document.querySelectorAll('[data-i18n-html]').forEach(el=>el.innerHTML=t(el.dataset.i18nHtml));
+    document.querySelectorAll('[data-i18n-ph]').forEach(el=>el.placeholder=t(el.dataset.i18nPh));
+    document.querySelectorAll('[data-i18n-title]').forEach(el=>el.title=t(el.dataset.i18nTitle));
+    document.querySelectorAll('[data-lang]').forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.lang===lang)));
+  }
 
   // ---------- storage ----------
   const store = {
@@ -396,24 +516,25 @@
 
   // ---------- Offline text reader (Tesseract, runs on the phone) ----------
   let ocrPromise=null;
-  const ocrState = t => { $('ocrState').innerHTML=t; };
+  let ocrKey='';
+  const ocrState = k => { ocrKey=k; $('ocrState').innerHTML=(k==='ocrPrep'?'<span class="spin"></span>':'')+t(k); };
   function initOCR(){
     if(ocrPromise) return ocrPromise;
     ocrPromise=(async()=>{
       if(!window.Tesseract) throw new Error('reader script did not load');
-      ocrState('<span class="spin"></span>Preparing offline reader (first time only, about 3 MB)…');
+      ocrState('ocrPrep');
       const w=await Tesseract.createWorker('eng', 1, {
         workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
         corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',
         langPath:new URL('tess', document.baseURI).href, gzip:false
       });
       await w.setParameters({ preserve_interword_spaces:'1' });
-      ocrState('✅ Offline reader ready — dates are read on your phone.');
+      ocrState('ocrReady');
       return w;
     })();
     ocrPromise.catch(err=>{
       console.warn(err); ocrPromise=null;
-      ocrState('⚠️ Offline reader could not start — check your internet for the first load, or type the dates by hand.');
+      ocrState('ocrFail');
     });
     return ocrPromise;
   }
@@ -501,7 +622,7 @@
   // ---------- AI reading ----------
   const PROMPT_CODE = `You are looking at a photo of a product's barcode area.
 Reply with ONLY a JSON object: {"name": string, "barcode": string}
-- name: the product name if printed in the photo (brand + product + size). Prefer English if both Arabic and English exist. "" if not visible.
+- name: the product name if printed in the photo (brand + product + size). Prefer LANGNAME if both Arabic and English exist. "" if not visible.
 - barcode: the digits printed under the barcode, digits only. "" if not readable.
 Never guess; use "" for anything unclear.`;
   const PROMPT_DATES = `You are looking at a close-up photo of the dates printed on a product package.
@@ -513,8 +634,8 @@ Reply with ONLY a JSON object: {"production_date": string, "expiry_date": string
 - batch: lot / batch number if printed, else "".
 Never guess; use "" for anything unclear.`;
   const AI = {
-    openai:{ label:'OpenAI API key', model:'gpt-4o-mini', help:'Get a key at platform.openai.com → API keys. (A ChatGPT Plus subscription does not include API use; the API is billed separately.)' },
-    gemini:{ label:'Google Gemini API key', model:'gemini-flash-latest', help:'Get a free key at aistudio.google.com → Get API key.' }
+    openai:{ label:'openaiLabel', model:'gpt-4o-mini', help:'openaiHelp', link:'https://platform.openai.com/api-keys' },
+    gemini:{ label:'geminiLabel', model:'gemini-flash-latest', help:'geminiHelp', link:'https://aistudio.google.com/apikey' }
   };
   const store2 = { get:k=>{ try{return localStorage.getItem(k)||'';}catch(e){return '';} }, set:(k,v)=>{ try{localStorage.setItem(k,v);}catch(e){} } };
   const aiKey = p => store2.get('b2x_key_'+p);
@@ -546,8 +667,7 @@ Never guess; use "" for anything unclear.`;
   }
   function aiError(err){
     const c=err&&err.code;
-    const msg={no_key:'Add your API key first (under "Read text using")',bad_key:'The API key was rejected — please check it',
-      rate_limited:'AI limit reached — wait a moment, or switch to Offline'}[c] || ('AI error: '+((err&&err.message)||'no answer')+' — fill it by hand or switch to Offline');
+    const msg={no_key:t('noKey'),bad_key:t('badKey'),rate_limited:t('rateLimited')}[c] || t('aiErr',{m:(err&&err.message)||'no answer'});
     toast(msg);
   }
   const validDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s||'') ? s : '';
@@ -560,12 +680,12 @@ Never guess; use "" for anything unclear.`;
       const r=await loadImage(file);
       $('photo'+n).src=r.url; $('wrap'+n).style.display='flex';
       return r.img;
-    }catch(err){ toast('Could not open that photo'); return null; }
+    }catch(err){ toast(t('couldNotOpen')); return null; }
   }
   function missingNote(){
-    const m=[]; if(!F.name.value) m.push('name'); if(!F.code.value) m.push('barcode');
-    if(!F.prod.value) m.push('production date'); if(!F.exp.value) m.push('expiry date');
-    return m.length?`<br>✏️ Still needed: ${esc(m.join(', '))}`:'<br>All set — check the details, then tap <b>Save item</b>.';
+    const m=[]; if(!F.name.value) m.push(t('w_name')); if(!F.code.value) m.push(t('w_barcode'));
+    if(!F.prod.value) m.push(t('prodW')); if(!F.exp.value) m.push(t('expW'));
+    return '<br>'+(m.length?t('stillNeeded',{x:esc(m.join(lang==='ar'?'، ':', '))}):t('allSet'));
   }
   function refreshNotes(){
     if($('wrap1').style.display==='flex' && $('status1').dataset.base) $('status1').innerHTML=$('status1').dataset.base;
@@ -577,7 +697,7 @@ Never guess; use "" for anything unclear.`;
   // ---------- Photo 1: barcode ----------
   $('cam1').addEventListener('change', async e=>{
     const img=await openPhoto(e,1); if(!img) return;
-    setS(1,'<span class="spin"></span>Reading barcode…');
+    setS(1,'<span class="spin"></span>'+t('readingBarcode'));
     handleBarcode(await decode(img), img);
   });
   async function handleBarcode(raw, img){
@@ -585,68 +705,79 @@ Never guess; use "" for anything unclear.`;
     const found=[];
     if(raw){
       const g=parseGS1(raw);
-      F.code.value = g ? g.code : raw.trim(); found.push('barcode '+F.code.value);
+      F.code.value = g ? g.code : raw.trim(); found.push(t('barcodeX',{c:F.code.value}));
       if(g){
-        if(g.prod){ F.prod.value=g.prod; found.push('production date'); }
-        if(g.exp){ F.exp.value=g.exp; found.push('expiry date'); }
-        if(g.batch){ F.batch.value=g.batch; found.push('batch'); }
+        if(g.prod){ F.prod.value=g.prod; found.push(t('prodW')); }
+        if(g.exp){ F.exp.value=g.exp; found.push(t('expW')); }
+        if(g.batch){ F.batch.value=g.batch; found.push(t('batchW')); }
       }
     }
     if(!F.code.value && !aiOn() && img){
-      setS(1,'<span class="spin"></span>Reading the numbers under the barcode…');
-      try{ const dg=findBarcodeDigits(await ocrText(img,11)); if(dg){ F.code.value=dg; found.push('barcode '+dg+' (from text)'); } }catch(err){}
+      setS(1,'<span class="spin"></span>'+t('readingDigits'));
+      try{ const dg=findBarcodeDigits(await ocrText(img,11)); if(dg){ F.code.value=dg; found.push(t('barcodeX',{c:dg})+t('fromText')); } }catch(err){}
     }
-    if(names[F.code.value]){ F.name.value=names[F.code.value]; found.push('name (remembered)'); }
+    if(names[F.code.value]){ F.name.value=names[F.code.value]; found.push(t('nameRemembered')); }
     if(aiOn() && img && (!F.name.value || !F.code.value)){
-      setS(1,(found.length?`✅ ${esc(found.join(', '))}<br>`:'')+'<span class="spin"></span>AI is reading the name…');
+      setS(1,(found.length?`✅ ${esc(found.join(', '))}<br>`:'')+'<span class="spin"></span>'+t('aiName'));
       try{
-        const v=await askAI(PROMPT_CODE, await smallJpeg(img));
-        if(!F.code.value && v.barcode && /\d{6,}/.test(v.barcode)){ F.code.value=v.barcode.replace(/\D/g,''); found.push('barcode '+F.code.value+' (from text)'); }
-        if(!F.name.value && names[F.code.value]){ F.name.value=names[F.code.value]; found.push('name (remembered)'); }
-        else if(!F.name.value && v.name){ F.name.value=v.name; found.push('name'); }
+        const v=await askAI(PROMPT_CODE.replace('LANGNAME', lang==='ar'?'Arabic':'English'), await smallJpeg(img));
+        if(!F.code.value && v.barcode && /\d{6,}/.test(v.barcode)){ F.code.value=v.barcode.replace(/\D/g,''); found.push(t('barcodeX',{c:F.code.value})+t('fromText')); }
+        if(!F.name.value && names[F.code.value]){ F.name.value=names[F.code.value]; found.push(t('nameRemembered')); }
+        else if(!F.name.value && v.name){ F.name.value=v.name; found.push(t('w_name')); }
       }catch(err){ aiError(err); }
     }
-    setS(1, found.length?`✅ Found: ${esc(found.join(', '))}`:'⚠️ Barcode not readable — retake closer, or type it.', true);
+    setS(1, found.length?'✅ '+t('found',{x:esc(found.join(', '))}):t('barcodeNotRead'), true);
     if(F.prod.value && F.exp.value) return;
     $('cam2Btn').classList.add('primary'); $('cam1Btn').classList.remove('primary');
     $('cam2Btn').scrollIntoView({behavior:'smooth',block:'center'});
   }
 
   // ---------- Photo 2: dates ----------
+  let dateTarget=null; // 'prod' / 'exp' when a single date's Scan button was used
   $('cam2').addEventListener('change', async e=>{
-    const img=await openPhoto(e,2); if(img) handleDates(img);
+    const only=dateTarget; dateTarget=null;
+    const img=await openPhoto(e,2); if(img) handleDates(img, only);
   });
-  async function handleDates(img){
+  async function handleDates(img, only){
     lastOcrText='';
     const found=[];
-    setS(2,'<span class="spin"></span>Reading dates…');
+    const want = f => !only || only===f;
+    // with one date in the photo the reader may label it either way; take whichever it found
+    const pick = (prod, exp) => only==='prod' ? {prod:prod||exp||'', exp:''} : only==='exp' ? {prod:'', exp:exp||prod||''} : {prod, exp};
+    const pre = () => found.length?`✅ ${esc(found.join(', '))}<br>`:'';
+    setS(2,'<span class="spin"></span>'+t('readingDates'));
     // Some packs have a GS1 DataMatrix next to the dates — try it first
     const raw=await decode(img); const g=raw&&parseGS1(raw);
     if(g){
-      if(g.prod){ F.prod.value=g.prod; found.push('production '+g.prod); }
-      if(g.exp){ F.exp.value=g.exp; found.push('expiry '+g.exp); }
+      if(g.prod && want('prod')){ F.prod.value=g.prod; found.push(t('prodX',{d:g.prod})); }
+      if(g.exp && want('exp')){ F.exp.value=g.exp; found.push(t('expX',{d:g.exp})); }
       if(g.batch && !F.batch.value) F.batch.value=g.batch;
       if(!F.code.value){ F.code.value=g.code; if(names[g.code]&&!F.name.value) F.name.value=names[g.code]; }
     }
-    if(aiOn() && !(g && g.prod && g.exp)){
-      setS(2,(found.length?`✅ ${esc(found.join(', '))}<br>`:'')+'<span class="spin"></span>AI is reading the dates…');
-      try{
-        const v=await askAI(PROMPT_DATES, await smallJpeg(img));
-        if(!(g&&g.prod) && validDate(v.production_date)){ F.prod.value=v.production_date; found.push('production '+v.production_date); }
-        if(!(g&&g.exp) && validDate(v.expiry_date)){ F.exp.value=v.expiry_date; found.push('expiry '+v.expiry_date); }
-        if(v.batch && !F.batch.value) F.batch.value=v.batch;
-      }catch(err){ aiError(err); }
-    } else if(!aiOn() && !(g && g.prod && g.exp)){
-      setS(2,(found.length?`✅ ${esc(found.join(', '))}<br>`:'')+'<span class="spin"></span>Reading dates on your phone…');
-      try{
-        const pre=found.length?`✅ ${esc(found.join(', '))}<br>`:'';
-        const v=await ocrDates(img,(i,n)=>setS(2,pre+`<span class="spin"></span>Reading dates on your phone… (try ${i} of ${n})`));
-        if(!(g&&g.prod) && v.prod){ F.prod.value=v.prod; found.push('production '+v.prod); }
-        if(!(g&&g.exp) && v.exp){ F.exp.value=v.exp; found.push('expiry '+v.exp); }
-      }catch(err){ toast('Offline reader not available — please pick the dates by hand'); }
+    const needProd = want('prod') && !(g&&g.prod), needExp = want('exp') && !(g&&g.exp);
+    const fill = v => {
+      if(needProd && v.prod){ F.prod.value=v.prod; found.push(t('prodX',{d:v.prod})); }
+      if(needExp && v.exp){ F.exp.value=v.exp; found.push(t('expX',{d:v.exp})); }
+    };
+    if(needProd || needExp){
+      if(aiOn()){
+        setS(2,pre()+'<span class="spin"></span>'+t('aiDates'));
+        try{
+          const v=await askAI(PROMPT_DATES, await smallJpeg(img));
+          fill(pick(validDate(v.production_date), validDate(v.expiry_date)));
+          if(v.batch && !F.batch.value) F.batch.value=v.batch;
+        }catch(err){ aiError(err); }
+      } else {
+        setS(2,pre()+'<span class="spin"></span>'+t('phoneDates'));
+        try{
+          const p0=pre();
+          const v=await ocrDates(img,(i,n)=>setS(2,p0+'<span class="spin"></span>'+t('phoneDates')+' '+t('tryN',{i,n})));
+          fill(pick(v.prod, v.exp));
+        }catch(err){ toast(t('ocrOff')); }
+      }
     }
-    let msg = found.length?`✅ Found: ${esc(found.join(', '))}`:'⚠️ Dates not readable — retake closer, or pick them below.';
-    if(!aiOn() && lastOcrText) msg += `<details style="margin-top:6px"><summary>Text the phone read</summary><pre style="white-space:pre-wrap;font-size:12px;margin:4px 0 0">${esc(lastOcrText.slice(0,1200))}</pre></details>`;
+    let msg = found.length?'✅ '+t('found',{x:esc(found.join(', '))}):t('datesNotRead');
+    if(!aiOn() && lastOcrText) msg += `<details style="margin-top:6px"><summary>${esc(t('phoneText'))}</summary><pre style="white-space:pre-wrap;font-size:12px;margin:4px 0 0" dir="ltr">${esc(lastOcrText.slice(0,1200))}</pre></details>`;
     setS(2, msg, true);
     $('cam2Btn').classList.remove('primary'); $('cam1Btn').classList.add('primary');
     (!F.name.value?F.name:!F.exp.value?F.exp:$('saveBtn')).focus();
@@ -663,7 +794,7 @@ Never guess; use "" for anything unclear.`;
   // ---------- save / edit ----------
   function clearForm(){
     Object.values(F).forEach(i=>i.value=''); F.qty.value='1'; editingId=null;
-    $('saveBtn').textContent='Save item';
+    $('saveBtn').textContent=t('save');
     [1,2].forEach(n=>{ $('wrap'+n).style.display='none'; $('status'+n).innerHTML=''; delete $('status'+n).dataset.base; });
     $('cam1Btn').classList.add('primary'); $('cam2Btn').classList.remove('primary');
   }
@@ -672,14 +803,14 @@ Never guess; use "" for anything unclear.`;
     e.preventDefault();
     const rec={ name:F.name.value.trim(), code:F.code.value.trim(), prod:F.prod.value, exp:F.exp.value,
       batch:F.batch.value.trim(), qty:F.qty.value===''?'':Number(F.qty.value) };
-    if(!rec.name && !rec.code){ toast('Enter at least an item name or barcode'); F.name.focus(); return; }
-    if(rec.prod && rec.exp && rec.prod>rec.exp){ toast('Production date is after expiry date — please check'); return; }
+    if(!rec.name && !rec.code){ toast(t('needNameOrCode')); F.name.focus(); return; }
+    if(rec.prod && rec.exp && rec.prod>rec.exp){ toast(t('prodAfterExp')); return; }
     if(editingId){
       const i=items.findIndex(x=>x.id===editingId); if(i>=0) items[i]={...items[i],...rec};
-      toast('Item updated');
+      toast(t('itemUpdated'));
     } else {
       items.unshift({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), added:new Date().toISOString(), ...rec});
-      toast('Item saved');
+      toast(t('itemSaved'));
     }
     if(rec.code && rec.name) names[rec.code]=rec.name;
     persist(); render(); clearForm();
@@ -693,25 +824,25 @@ Never guess; use "" for anything unclear.`;
   }
   function badge(exp){
     const d=daysLeft(exp); if(d===null) return '';
-    if(d<0) return `<span class="badge bad">Expired ${-d} day${d===-1?'':'s'} ago</span>`;
-    if(d<=30) return `<span class="badge warn">Expires in ${d} day${d===1?'':'s'}</span>`;
-    return `<span class="badge ok">${d} days left</span>`;
+    if(d<0) return `<span class="badge bad">${esc(t('expiredAgo',{n:-d}))}</span>`;
+    if(d<=30) return `<span class="badge warn">${esc(t('expiresIn',{n:d}))}</span>`;
+    return `<span class="badge ok">${esc(t('daysLeft',{n:d}))}</span>`;
   }
   function render(){
     $('count').textContent=items.length;
     const L=$('list');
-    if(!items.length){ L.innerHTML='<div class="empty">No items yet. Take a photo to start.</div>'; return; }
+    if(!items.length){ L.innerHTML=`<div class="empty">${esc(t('empty'))}</div>`; return; }
     L.innerHTML=items.map(it=>`
       <div class="item">
         <div class="info">
-          <div class="name">${esc(it.name||'(no name)')}</div>
-          <div class="meta">🔢 ${esc(it.code||'—')}${it.qty!==''&&it.qty!=null?` · Qty ${esc(it.qty)}`:''}${it.batch?` · Lot ${esc(it.batch)}`:''}</div>
-          <div class="meta">🏭 ${esc(it.prod||'—')} &nbsp; ⏳ ${esc(it.exp||'—')}</div>
+          <div class="name">${esc(it.name||t('noName'))}</div>
+          <div class="meta">🔢 <bdi>${esc(it.code||'—')}</bdi>${it.qty!==''&&it.qty!=null?` · ${esc(t('qtyShort'))} ${esc(it.qty)}`:''}${it.batch?` · ${esc(t('lot'))} <bdi>${esc(it.batch)}</bdi>`:''}</div>
+          <div class="meta">🏭 ${esc(t('prodW'))}: <bdi>${esc(it.prod||'—')}</bdi> &nbsp; ⏳ ${esc(t('expW'))}: <bdi>${esc(it.exp||'—')}</bdi></div>
           ${badge(it.exp)}
         </div>
         <div class="acts">
-          <button class="btn" data-edit="${it.id}">Edit</button>
-          <button class="btn" data-del="${it.id}">Delete</button>
+          <button class="btn" data-edit="${it.id}">${esc(t('edit'))}</button>
+          <button class="btn" data-del="${it.id}">${esc(t('del'))}</button>
         </div>
       </div>`).join('');
   }
@@ -721,19 +852,18 @@ Never guess; use "" for anything unclear.`;
       const it=items.find(x=>x.id===ed.dataset.edit); if(!it) return;
       editingId=it.id; F.name.value=it.name||''; F.code.value=it.code||''; F.prod.value=it.prod||'';
       F.exp.value=it.exp||''; F.batch.value=it.batch||''; F.qty.value=it.qty??'';
-      $('saveBtn').textContent='Update item'; $('form').scrollIntoView({behavior:'smooth'}); F.name.focus();
+      $('saveBtn').textContent=t('update'); $('form').scrollIntoView({behavior:'smooth'}); F.name.focus();
     }
     if(dl){
-      if(await ask('Delete this item?')){ items=items.filter(x=>x.id!==dl.dataset.del); persist(); render(); }
+      if(await ask(t('askDel'))){ items=items.filter(x=>x.id!==dl.dataset.del); persist(); render(); }
     }
   });
   $('wipeBtn').onclick=async()=>{
     if(!items.length) return;
-    if(await ask(`Delete all ${items.length} items? Export to Excel first if you need them.`)){ items=[]; persist(); render(); }
+    if(await ask(t('askWipe',{n:items.length}))){ items=[]; persist(); render(); }
   };
 
   // ---------- export ----------
-  const HEAD=['#','Item name','Barcode','Production date','Expiration date','Days left','Batch / lot','Quantity'];
   // Excel date serials written directly: JS Date objects pick up the time zone's historical offset (e.g. +52s in Riyadh)
   const serial = s => { const [y,m,d]=s.split('-').map(Number); return (Date.UTC(y,m-1,d)-Date.UTC(1899,11,30))/86400000; };
   const dateCell = s => s ? {t:'n', v:serial(s), z:'yyyy-mm-dd'} : '';
@@ -751,35 +881,40 @@ Never guess; use "" for anything unclear.`;
     });
   }
   $('xlsxBtn').onclick=async()=>{
-    if(!items.length){ toast('No items to export'); return; }
-    if(!window.XLSX){ toast('Excel library did not load — use Copy table'); return; }
-    const ws=XLSX.utils.aoa_to_sheet([HEAD,...rows(true)]);
+    if(!items.length){ toast(t('noItems')); return; }
+    if(!window.XLSX){ toast(t('xlsxMissing')); return; }
+    const ws=XLSX.utils.aoa_to_sheet([t('head'),...rows(true)]);
     ws['!cols']=[{wch:5},{wch:34},{wch:18},{wch:16},{wch:16},{wch:10},{wch:14},{wch:10}];
     ws['!autofilter']={ref:`A1:H${items.length+1}`};
-    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Items');
+    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,t('sheet'));
+    if(lang==='ar') wb.Workbook={Views:[{RTL:true}]};
     const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
     const stamp=new Date().toISOString().slice(0,10);
     const url=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
     const link=document.createElement('a'); link.href=url; link.download=`items-${stamp}.xlsx`;
     document.body.appendChild(link); link.click(); link.remove();
     setTimeout(()=>URL.revokeObjectURL(url),4000);
-    toast('Excel file downloaded');
+    toast(t('downloaded'));
   };
   $('copyBtn').onclick=async()=>{
-    if(!items.length){ toast('No items to copy'); return; }
-    const tsv=[HEAD,...rows(false)].map(r=>r.map(v=>String(v).replace(/[\t\n]/g,' ')).join('\t')).join('\n');
-    try{ await navigator.clipboard.writeText(tsv); toast('Copied — paste into Excel'); }
-    catch(e){ toast('Copy was blocked by the browser'); }
+    if(!items.length){ toast(t('noCopy')); return; }
+    const tsv=[t('head'),...rows(false)].map(r=>r.map(v=>String(v).replace(/[\t\n]/g,' ')).join('\t')).join('\n');
+    try{ await navigator.clipboard.writeText(tsv); toast(t('copied')); }
+    catch(e){ toast(t('copyBlocked')); }
   };
 
-  render();
+  applyLang(); $('saveBtn').textContent=t('save'); render();
+  document.querySelectorAll('[data-lang]').forEach(b=>b.addEventListener('click',()=>{
+    lang=b.dataset.lang; try{ localStorage.setItem('b2x_lang',lang); }catch(e){}
+    applyLang(); $('saveBtn').textContent=t(editingId?'update':'save'); render(); showEngine(); refreshNotes();
+  }));
   function showEngine(){
     const p=engine();
-    if(p==='local'){ $('aiBox').style.display='none'; initOCR(); return; }
+    if(p==='local'){ $('aiBox').style.display='none'; if(ocrKey) ocrState(ocrKey); initOCR(); return; }
     $('aiBox').style.display='block';
-    $('aiKeyLbl').textContent=AI[p].label; $('aiHelp').textContent=AI[p].help;
+    $('aiKeyLbl').textContent=t(AI[p].label); $('aiHelp').textContent=t(AI[p].help); $('aiLink').href=AI[p].link;
     $('aiKey').value=aiKey(p); $('aiModel').value=aiModel(p); $('aiModel').placeholder=AI[p].model;
-    ocrState(aiKey(p)?`${p==='openai'?'ChatGPT':'Gemini'} reads the name and dates (needs internet).`:'⚠️ Paste your API key to use AI. Until then the offline reader is used.');
+    $('ocrState').textContent = aiKey(p) ? t('aiReady',{p:p==='openai'?'ChatGPT':'Gemini'}) : t('aiNoKey');
   }
   $('aiKey').addEventListener('input',()=>{ store2.set('b2x_key_'+engine(), $('aiKey').value.trim()); showEngine(); });
   $('aiModel').addEventListener('change',()=>{ store2.set('b2x_model_'+engine(), $('aiModel').value.trim()); });
@@ -792,10 +927,10 @@ Never guess; use "" for anything unclear.`;
   const camMsg=t=>{ $('camMsg').textContent=t; };
   async function openCam(mode){
     camMode=mode;
-    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ toast('Camera not available — use 🖼 Photo'); return; }
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ toast(t('camNA')); return; }
     try{
       stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
-    }catch(e){ toast('Camera permission denied — use 🖼 Photo, or allow the camera in browser settings'); return; }
+    }catch(e){ toast(t('camDenied')); if(mode!=='barcode'){ dateTarget=mode==='dates'?null:mode; $('cam2').click(); } return; }
     const v=$('camVideo'); v.srcObject=stream; await v.play().catch(()=>{});
     $('camModal').classList.add('show');
     const track=stream.getVideoTracks()[0], caps=track.getCapabilities?track.getCapabilities():{};
@@ -803,11 +938,11 @@ Never guess; use "" for anything unclear.`;
     if(caps.focusMode && caps.focusMode.includes('continuous')) track.applyConstraints({advanced:[{focusMode:'continuous'}]}).catch(()=>{});
     if(mode==='barcode'){
       $('camFrame').style.cssText='top:32%;height:22%'; $('camShot').style.display='none';
-      camMsg('Point at the barcode — it scans automatically');
+      camMsg(t('camBarcode'));
       startBarcodeLoop();
     } else {
-      $('camFrame').style.cssText='top:28%;height:30%'; $('camShot').style.display='';
-      camMsg('Put the PROD / EXP dates inside the box, then tap Capture');
+      $('camFrame').style.cssText=mode==='dates'?'top:28%;height:30%':'top:34%;height:18%'; $('camShot').style.display='';
+      camMsg(t(mode==='prod'?'camProd':mode==='exp'?'camExp':'camDates'));
     }
   }
   function closeCam(){
@@ -856,11 +991,12 @@ Never guess; use "" for anything unclear.`;
   $('cam1Btn').onclick=()=>openCam('barcode');
   $('cam2Btn').onclick=()=>openCam('dates');
   $('camClose').onclick=closeCam;
+  document.querySelectorAll('[data-scan]').forEach(b=>b.onclick=()=>openCam(b.dataset.scan));
   $('camShot').onclick=async()=>{
-    const c=frameCanvas(true); closeCam(); if(!c) return;
+    const mode=camMode, c=frameCanvas(true); closeCam(); if(!c) return;
     const img=await canvasToImg(c);
     $('photo2').src=img.src; $('wrap2').style.display='flex';
-    handleDates(img);
+    handleDates(img, mode==='prod'||mode==='exp' ? mode : null);
   };
   $('camTorch').onclick=()=>{
     if(!stream) return; const t=stream.getVideoTracks()[0]; const on=!t._torch; t._torch=on;

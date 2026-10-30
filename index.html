@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 <style>
   :root{
     --bg:#f4f6f5; --card:#fff; --ink:#17201c; --muted:#5f6b66; --line:#dfe5e2;
@@ -403,8 +403,8 @@
       if(!window.Tesseract) throw new Error('reader script did not load');
       ocrState('<span class="spin"></span>Preparing offline reader (first time only, about 3 MB)…');
       const w=await Tesseract.createWorker('eng', 1, {
-        workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-        corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5',
+        workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',
+        corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',
         langPath:new URL('tess', document.baseURI).href, gzip:false
       });
       await w.setParameters({ preserve_interword_spaces:'1' });
@@ -734,20 +734,26 @@ Never guess; use "" for anything unclear.`;
 
   // ---------- export ----------
   const HEAD=['#','Item name','Barcode','Production date','Expiration date','Days left','Batch / lot','Quantity'];
-  const toDate = s => { if(!s) return ''; const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); };
+  // Excel date serials written directly: JS Date objects pick up the time zone's historical offset (e.g. +52s in Riyadh)
+  const serial = s => { const [y,m,d]=s.split('-').map(Number); return (Date.UTC(y,m-1,d)-Date.UTC(1899,11,30))/86400000; };
+  const dateCell = s => s ? {t:'n', v:serial(s), z:'yyyy-mm-dd'} : '';
   function rows(forExcel){
-    return items.slice().reverse().map((it,i)=>[
-      i+1, it.name||'', it.code||'',
-      forExcel?toDate(it.prod):(it.prod||''), forExcel?toDate(it.exp):(it.exp||''),
-      daysLeft(it.exp)??'', it.batch||'', it.qty??''
-    ]);
+    return items.slice().reverse().map((it,i)=>{
+      const left=daysLeft(it.exp)??'';
+      if(!forExcel) return [i+1, it.name||'', it.code||'', it.prod||'', it.exp||'', left, it.batch||'', it.qty??''];
+      return [
+        i+1, it.name||'',
+        {t:'s', v:String(it.code||'')}, // text so Excel doesn't turn barcodes into 6.28E+12
+        dateCell(it.prod), dateCell(it.exp),
+        it.exp ? {t:'n', v:left, f:`E${i+2}-TODAY()`, z:'0'} : '', // live, so the sheet stays right on later days
+        it.batch||'', it.qty??''
+      ];
+    });
   }
   $('xlsxBtn').onclick=async()=>{
     if(!items.length){ toast('No items to export'); return; }
     if(!window.XLSX){ toast('Excel library did not load — use Copy table'); return; }
-    const ws=XLSX.utils.aoa_to_sheet([HEAD,...rows(true)],{cellDates:true,dateNF:'yyyy-mm-dd'});
-    // keep barcodes as text so Excel doesn't turn them into 6.28E+12
-    for(let r=1;r<=items.length;r++){ const a=XLSX.utils.encode_cell({r,c:2}); if(ws[a]){ ws[a].t='s'; ws[a].v=String(ws[a].v); } }
+    const ws=XLSX.utils.aoa_to_sheet([HEAD,...rows(true)]);
     ws['!cols']=[{wch:5},{wch:34},{wch:18},{wch:16},{wch:16},{wch:10},{wch:14},{wch:10}];
     ws['!autofilter']={ref:`A1:H${items.length+1}`};
     const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Items');

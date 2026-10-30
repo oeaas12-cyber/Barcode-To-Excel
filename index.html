@@ -38,7 +38,7 @@
   .row{display:flex;gap:10px;flex-wrap:wrap}
   .row > *{flex:1 1 140px}
   label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px;font-weight:600}
-  input[type=text],input[type=date],input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);
+  input[type=text],input[type=password],input[type=date],input[type=number]{width:100%;padding:11px 12px;border:1px solid var(--line);
     border-radius:10px;background:var(--bg);color:var(--ink);font:inherit}
   input:focus{outline:2px solid var(--accent);outline-offset:1px}
   .photoWrap{display:none;margin-top:10px;gap:12px;align-items:flex-start}
@@ -86,6 +86,7 @@
   .withbtn input{flex:1;min-width:0}
   .btn.scan{white-space:nowrap;padding:8px 12px;font-size:14px}
   .hint a{color:var(--accent);font-weight:600}
+  .hint.good{color:var(--ok)} .hint.bad{color:var(--bad)}
   [dir=rtl] input[dir=ltr]{text-align:right}
 </style>
 </head>
@@ -131,6 +132,10 @@
     <div id="aiBox" class="aibox" style="display:none">
       <label for="aiKey" id="aiKeyLbl"></label>
       <input id="aiKey" type="password" autocomplete="off" spellcheck="false" dir="ltr" data-i18n-ph="pasteKey">
+      <div class="row" style="margin-top:8px;align-items:center">
+        <button class="btn primary" type="button" id="aiTest" style="flex:0 0 auto" data-i18n="testAi"></button>
+        <p class="hint" id="aiTestMsg" style="margin:0;flex:1 1 160px" role="status"></p>
+      </div>
       <p class="hint"><span id="aiHelp"></span> <a id="aiLink" target="_blank" rel="noopener" data-i18n="getKey"></a></p>
       <label for="aiModel" data-i18n="model"></label>
       <input id="aiModel" type="text" autocomplete="off" spellcheck="false" dir="ltr">
@@ -257,6 +262,9 @@
       aiReady:'{p} reads the name and dates (needs internet).', aiNoKey:'⚠️ Paste your API key to use AI. Until then the phone reader is used.',
       noKey:'Add your API key first (under "Read text using")', badKey:'The API key was rejected — please check it',
       rateLimited:'AI limit reached — wait a moment, or switch to On phone', aiErr:'AI error: {m} — fill it by hand or switch to On phone',
+      testAi:'Test connection', aiTesting:'Checking your key…', aiOk:'✅ Connected — {p} will read your photos (model {m}).',
+      aiNoModel:'⚠️ The key works, but no model that can read photos was found on this account.',
+      noCredit:'Your OpenAI account has no API credit. Add a payment method at platform.openai.com → Billing, or use Gemini (free).',
       openaiLabel:'OpenAI (ChatGPT) API key', geminiLabel:'Google Gemini API key',
       openaiHelp:'Sign in at platform.openai.com, create an API key and paste it here. A ChatGPT Plus subscription does not include API use; it is billed separately.',
       geminiHelp:'Free: sign in with your Google account, tap "Create API key", copy it and paste it here.',
@@ -299,6 +307,9 @@
       aiReady:'{p} يقرأ الاسم والتواريخ (يحتاج إنترنت).', aiNoKey:'⚠️ الصق مفتاح API لاستخدام الذكاء الاصطناعي. حتى ذلك الحين يُستخدم القارئ على الجهاز.',
       noKey:'أضف مفتاح API أولاً (ضمن "قراءة النص بواسطة")', badKey:'تم رفض مفتاح API — يرجى التحقق منه',
       rateLimited:'تم بلوغ حد الاستخدام — انتظر قليلاً أو اختر "على الجهاز"', aiErr:'خطأ في الذكاء الاصطناعي: {m} — أدخل البيانات يدوياً أو اختر "على الجهاز"',
+      testAi:'اختبار الاتصال', aiTesting:'جارٍ التحقق من المفتاح…', aiOk:'✅ تم الاتصال — سيقرأ {p} صورك (النموذج {m}).',
+      aiNoModel:'⚠️ المفتاح يعمل، لكن لا يوجد في هذا الحساب نموذج يستطيع قراءة الصور.',
+      noCredit:'لا يوجد رصيد API في حساب OpenAI. أضف وسيلة دفع من platform.openai.com ← Billing، أو استخدم Gemini (مجاني).',
       openaiLabel:'مفتاح API من OpenAI (ChatGPT)', geminiLabel:'مفتاح API من Google Gemini',
       openaiHelp:'سجّل الدخول في platform.openai.com وأنشئ مفتاح API والصقه هنا. اشتراك ChatGPT Plus لا يشمل استخدام API؛ يُحتسب بشكل منفصل.',
       geminiHelp:'مجاني: سجّل الدخول بحساب Google، اضغط "Create API key"، انسخ المفتاح والصقه هنا.',
@@ -652,7 +663,7 @@ Never guess; use "" for anything unclear.`;
         body:JSON.stringify({model, response_format:{type:'json_object'},
           messages:[{role:'user',content:[{type:'text',text:prompt},{type:'image_url',image_url:{url:'data:image/jpeg;base64,'+b64}}]}]})});
       j=await r.json().catch(()=>({}));
-      if(!r.ok) throw {code:r.status===401?'bad_key':r.status===429?'rate_limited':'api', message:(j.error&&j.error.message)||r.status};
+      if(!r.ok) throw {code:r.status===401?'bad_key':(j.error&&j.error.code==='insufficient_quota')?'no_credit':r.status===429?'rate_limited':'api', message:(j.error&&j.error.message)||r.status};
       return parseJSON(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content);
     } else {
       r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',
@@ -667,8 +678,60 @@ Never guess; use "" for anything unclear.`;
   }
   function aiError(err){
     const c=err&&err.code;
-    const msg={no_key:t('noKey'),bad_key:t('badKey'),rate_limited:t('rateLimited')}[c] || t('aiErr',{m:(err&&err.message)||'no answer'});
+    const msg={no_key:t('noKey'),bad_key:t('badKey'),no_credit:t('noCredit'),rate_limited:t('rateLimited')}[c] || t('aiErr',{m:(err&&err.message)||'no answer'});
     toast(msg);
+  }
+  // ---------- AI connection test ----------
+  // Lists the account's models (checks the key), then makes one tiny request with the chosen model.
+  // If that model is missing, switches to one the account has.
+  const PREFER = { openai:['gpt-4o-mini','gpt-4.1-mini','gpt-5-mini','gpt-4o','gpt-4.1'], gemini:['gemini-flash-latest','gemini-2.5-flash','gemini-2.0-flash','gemini-flash-lite-latest'] };
+  async function listModels(p, key){
+    const r = p==='openai'
+      ? await fetch('https://api.openai.com/v1/models',{headers:{'Authorization':'Bearer '+key}})
+      : await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000',{headers:{'x-goog-api-key':key}});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok) throw {code:(r.status===401||r.status===403||(r.status===400&&/key/i.test(JSON.stringify(j))))?'bad_key':r.status===429?'rate_limited':'api', message:(j.error&&j.error.message)||r.status};
+    return p==='openai' ? (j.data||[]).map(m=>m.id)
+      : (j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>m.name.replace(/^models\//,''));
+  }
+  async function ping(p, key, model){
+    let r, j;
+    if(p==='openai'){
+      r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+        body:JSON.stringify({model, messages:[{role:'user',content:'Reply with the word OK.'}]})});
+    } else {
+      r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',
+        headers:{'Content-Type':'application/json','x-goog-api-key':key}, body:JSON.stringify({contents:[{parts:[{text:'Reply with the word OK.'}]}]})});
+    }
+    j=await r.json().catch(()=>({}));
+    if(r.ok) return true;
+    const m=(j.error&&j.error.message)||String(r.status);
+    if(r.status===404 || /model/i.test(m) && /not.?found|does not exist|not supported|access/i.test(m)) return false; // model problem → try another
+    throw {code:r.status===401?'bad_key':(j.error&&j.error.code==='insufficient_quota')?'no_credit':r.status===429?'rate_limited':'api', message:m};
+  }
+  let testing=false;
+  async function testAI(){
+    const p=engine(); if(p==='local'||testing) return;
+    const key=$('aiKey').value.trim(), out=$('aiTestMsg');
+    const show=(txt,cls)=>{ out.className='hint'+(cls?' '+cls:''); out.textContent=txt; };
+    if(!key){ show(t('noKey'),'bad'); $('aiKey').focus(); return; }
+    store2.set('b2x_key_'+p,key);
+    testing=true; $('aiTest').disabled=true;
+    out.className='hint'; out.innerHTML='<span class="spin"></span>'+esc(t('aiTesting'));
+    try{
+      const models=await listModels(p,key);
+      const want=($('aiModel').value.trim()||aiModel(p));
+      const tryList=[want,...PREFER[p].filter(m=>m!==want && models.includes(m))];
+      let ok=null;
+      for(const m of tryList){ if(await ping(p,key,m)){ ok=m; break; } }
+      if(!ok){ show(t('aiNoModel'),'bad'); return; }
+      store2.set('b2x_model_'+p,ok); $('aiModel').value=ok;
+      show(t('aiOk',{p:p==='openai'?'ChatGPT':'Gemini', m:ok}),'good');
+      $('ocrState').textContent=t('aiReady',{p:p==='openai'?'ChatGPT':'Gemini'});
+    }catch(err){
+      const c=err&&err.code;
+      show({bad_key:t('badKey'),no_credit:t('noCredit'),rate_limited:t('rateLimited')}[c] || t('aiErr',{m:(err&&err.message)||'no answer'}),'bad');
+    }finally{ testing=false; $('aiTest').disabled=false; }
   }
   const validDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s||'') ? s : '';
   const aiOn = () => engine()!=='local' && !!aiKey(engine());
@@ -911,12 +974,15 @@ Never guess; use "" for anything unclear.`;
   function showEngine(){
     const p=engine();
     if(p==='local'){ $('aiBox').style.display='none'; if(ocrKey) ocrState(ocrKey); initOCR(); return; }
-    $('aiBox').style.display='block';
+    $('aiBox').style.display='block'; if($('aiBox').dataset.p!==p){ $('aiTestMsg').textContent=''; $('aiBox').dataset.p=p; }
     $('aiKeyLbl').textContent=t(AI[p].label); $('aiHelp').textContent=t(AI[p].help); $('aiLink').href=AI[p].link;
     $('aiKey').value=aiKey(p); $('aiModel').value=aiModel(p); $('aiModel').placeholder=AI[p].model;
     $('ocrState').textContent = aiKey(p) ? t('aiReady',{p:p==='openai'?'ChatGPT':'Gemini'}) : t('aiNoKey');
   }
-  $('aiKey').addEventListener('input',()=>{ store2.set('b2x_key_'+engine(), $('aiKey').value.trim()); showEngine(); });
+  $('aiKey').addEventListener('input',()=>{ store2.set('b2x_key_'+engine(), $('aiKey').value.trim()); $('aiTestMsg').textContent='';
+    $('ocrState').textContent = aiKey(engine()) ? t('aiReady',{p:engine()==='openai'?'ChatGPT':'Gemini'}) : t('aiNoKey'); });
+  $('aiKey').addEventListener('change',()=>{ if($('aiKey').value.trim()) testAI(); });
+  $('aiTest').addEventListener('click',testAI);
   $('aiModel').addEventListener('change',()=>{ store2.set('b2x_model_'+engine(), $('aiModel').value.trim()); });
   { const saved=store2.get('b2x_engine'); const el=document.querySelector(`input[name=engine][value="${saved}"]`); if(el) el.checked=true; }
   document.querySelectorAll('input[name=engine]').forEach(r=>r.addEventListener('change',()=>{ store2.set('b2x_engine', engine()); showEngine(); }));
